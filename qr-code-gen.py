@@ -259,17 +259,12 @@ ALIGNMENT_PATTERN = [[1,1,1,1,1],
                      [1,0,0,0,1],
                      [1,1,1,1,1]]
 
-alphnum_enc_dict = {"0": 0, "1": 1, "2": 2, "3": 3, "4": 4, "5": 5, "6": 6, "7": 7, "8": 8, "9": 9, "A": 10, "B": 11, "C": 12, "D": 13, "E": 14, "F": 15, "G": 16, "H": 17, "I": 18, "J": 19, "K": 20, "L": 21, "M": 22, "N": 23, "O": 24, "P": 25, "Q": 26, "R": 27, "S": 28, "T": 29, "U": 30, "V": 31, "W": 32, "X": 33, "Y": 34, "Z": 35, " ": 36, "$": 37, "%": 38, "*": 39, "+": 40, "-": 41, ".": 42, "/": 43, ":": 44}
-
 # url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-url = "hello world"
+url = "Hello, world!"
 
-# TODO: figure out which mode we should use (https://www.thonky.com/qr-code-tutorial/data-encoding)
+MODE_BITS = "0100" # byte mode
 
-mode = "0010" # alphanumeric
-url = url.upper()
-
-char_count = f'{len(url):09b}'
+char_count = f'{len(url):08b}' # for byte mode, char_count needs to be 8 bits long
 
 # TODO: figure out which version we should use (https://www.thonky.com/qr-code-tutorial/data-encoding)
 # We are going to use 1L for a proof of concept
@@ -280,19 +275,12 @@ MAX_DATA_BITS = 19 * 8 # 1L
 NUM_OF_ERR_CORR_CODEWORDS = int(26 - (MAX_DATA_BITS/8)) # this is only for ver 1 QR codes
 
 
+# convert the characters to ISO 8859-1 encoding
 combined_enc_str = ""
-i = 1
-while i < len(url):
-    combined_enc = f'{(alphnum_enc_dict[url[i-1]] * 45) + alphnum_enc_dict[url[i]]:011b}'
-    combined_enc_str += combined_enc
-    i += 2
+for char in url:
+    combined_enc_str += f'{ord(char):08b}'
 
-if i == len(url):
-    # we have an odd number of characters, convert the character by itself
-    combined_enc = f'{alphnum_enc_dict[url[i-1]]:06b}'
-    combined_enc_str += combined_enc
-
-data_bits = mode + char_count + combined_enc_str
+data_bits = MODE_BITS + char_count + combined_enc_str
 
 # add up to 4 zeroes as a terminator, making sure we don't go over the max length
 i = 0
