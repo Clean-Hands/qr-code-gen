@@ -81,6 +81,7 @@ def calculate_error_correction(message_ints, num_codewords, gf):
     # return the remainder (error correction codewords)
     return dividend[-len(padding):]
 
+# TODO: put the following two functions in a class where pixel_arr and module_size are instance variables
 
 def get_module(x, y):
     global pixel_arr, module_size
@@ -88,7 +89,6 @@ def get_module(x, y):
     module_x = (x+1)*module_size
     module_y = (y+1)*module_size
     return pixel_arr[module_x,module_y]
-
 
 def update_module(x, y, value):
     global pixel_arr, module_size
@@ -100,8 +100,6 @@ def update_module(x, y, value):
         for j in range(module_y, module_y+module_size):
             pixel_arr[i,j] = value
 
-def all_black(column, row):
-    return 1
 
 def mask_num_0(column, row):
     module_val = get_module(column, row)
@@ -184,6 +182,108 @@ def apply_mask(mask_func):
     
     return
 
+def eval_condition_1():
+    # Evaluation Condition #1: 5+ same-colored modules in a row/column
+    penalty = 0
+    prev_column = [-1] * MODULES_PER_EDGE
+    consecutive_count_column = [1] * MODULES_PER_EDGE
+    
+    for x in range(0, MODULES_PER_EDGE):
+        consecutive_count = 1
+        prev_module = -1
+
+        for y in range(0, MODULES_PER_EDGE):
+            curr_module = get_module(x, y)
+            
+            # if the current module is the same color as the previous one, update consecutive_count
+            if curr_module == prev_module:
+                consecutive_count += 1
+                # if we have 5 modules with the same color in a row, add 3 to the penalty
+                if consecutive_count == 5:
+                    penalty += 3
+                # for every same-colored module after the 5th, add one extra penalty point
+                elif consecutive_count > 5:
+                    penalty += 1
+            # if it is a different color, reset the count
+            else:
+                consecutive_count = 1
+                
+            # if the current module is the same color as the previous one, update consecutive_count
+            if curr_module == prev_column[y]:
+                consecutive_count_column[y] += 1
+                # if we have 5 modules with the same color in a column, add 3 to the penalty
+                if consecutive_count_column[y] == 5:
+                    penalty += 3
+                # for every same-colored module after the 5th, add one extra penalty point
+                elif consecutive_count_column[y] > 5:
+                    penalty += 1
+            # if it is a different color, reset the count
+            else:
+                consecutive_count_column[y] = 1
+
+            # update the value of the previous module
+            prev_module = curr_module
+            prev_column[y] = curr_module
+
+    return penalty
+
+def eval_condition_2():
+    # Evaluation Condition #2: 2x2 squares of the same color
+    penalty = 0
+    for x in range(0, MODULES_PER_EDGE-1):
+        for y in range(0, MODULES_PER_EDGE-1):
+            if get_module(x, y) == get_module(x+1, y) == get_module(x, y+1) == get_module(x+1, y+1):
+                penalty += 3
+    return penalty
+
+def eval_condition_3():
+    # Evaluation Condition #3: patterns of dark-light-dark-dark-dark-light-dark with 4 light on either side
+    patt_1 = [0, 0, 0, 0, 1, 0, 1, 1, 1, 0, 1]
+    patt_2 = [1, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0]
+    patt_len = len(patt_1)
+    
+    penalty = 0
+    for x in range(0, MODULES_PER_EDGE-9):
+        for y in range(0, MODULES_PER_EDGE-9):
+            test_list_vert = []
+            test_list_horz = []
+            for i in range(patt_len):
+                test_list_vert.append(get_module(x, y+i))
+                test_list_horz.append(get_module(x+i, y))
+            if test_list_vert == patt_1 or test_list_vert == patt_2:
+                penalty += 40
+            if test_list_horz == patt_1 or test_list_horz == patt_2:
+                penalty += 40
+                
+    return penalty
+
+def eval_condition_4():
+    # Evaluation Condition #4: ratio of black to white modules 
+    
+    dark_count = 0
+    total_module_count = MODULES_PER_EDGE * MODULES_PER_EDGE
+    for x in range(0, MODULES_PER_EDGE):
+        for y in range(0, MODULES_PER_EDGE):
+            if get_module(x, y) == 1:
+                dark_count += 1
+
+    dark_percent = (dark_count/total_module_count) * 100
+    distance_from_equal = int(abs(dark_percent - 50))
+    
+    mult = 0
+    while (distance_from_equal-1) > mult:
+        mult += 1
+
+    return mult * 10
+
+def calc_mask_score():
+    penalty = eval_condition_1()
+    penalty += eval_condition_2()
+    penalty += eval_condition_3()
+    penalty += eval_condition_4()
+    return penalty
+            
+
 def add_format_bits(err_corr_lvl, mask_ver):
     ec_lvl_bits = f'{err_corr_lvl:02b}'
     mask_ver_bits = f'{mask_ver:03b}'
@@ -220,7 +320,6 @@ def add_format_bits(err_corr_lvl, mask_ver):
     
     format_bits = f'{(0b101010000010010 ^ int(format_bits, 2)):015b}'
     assert len(format_bits) == 15
-    print(format_bits)
     
     # add the format bits to the QR code
     format_list = [int(i) for i in list(format_bits)]
@@ -244,6 +343,13 @@ def add_format_bits(err_corr_lvl, mask_ver):
 # =================================================================================================================
 
 
+# CLI Options:
+# -e, --err-corr [level]: Level of error correction (L, M, Q, H)
+# -d, --data [string]: data that should be encoded within the QR code
+# -v, --version [version number]: override version number
+# -m, --mask [mask number]: override mask number
+
+
 
 FINDER_PATTERN = [[1,1,1,1,1,1,1],
                   [1,0,0,0,0,0,1],
@@ -259,12 +365,12 @@ ALIGNMENT_PATTERN = [[1,1,1,1,1],
                      [1,0,0,0,1],
                      [1,1,1,1,1]]
 
-# url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-url = "Hello, world!"
+# data = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+data = "Hello, world!"
 
 MODE_BITS = "0100" # byte mode
 
-char_count = f'{len(url):08b}' # for byte mode, char_count needs to be 8 bits long
+char_count = f'{len(data):08b}' # for byte mode, char_count needs to be 8 bits long
 
 # TODO: figure out which version we should use (https://www.thonky.com/qr-code-tutorial/data-encoding)
 # We are going to use 1L for a proof of concept
@@ -277,7 +383,7 @@ NUM_OF_ERR_CORR_CODEWORDS = int(26 - (MAX_DATA_BITS/8)) # this is only for ver 1
 
 # convert the characters to ISO 8859-1 encoding
 combined_enc_str = ""
-for char in url:
+for char in data:
     combined_enc_str += f'{ord(char):08b}'
 
 data_bits = MODE_BITS + char_count + combined_enc_str
@@ -309,7 +415,6 @@ while i < len(data_bits):
 
 # TODO: if we have a version high enough, break into blocks/groups
 
-
 # initialize Galois Field
 gf = GaloisField()
 
@@ -330,8 +435,6 @@ while rounded_resolution < IMAGE_RESOLUTION:
     rounded_resolution += (MODULES_PER_EDGE+2)
 
 module_size = int(rounded_resolution/(MODULES_PER_EDGE+2))
-print(module_size)
-print(rounded_resolution)
 
 qr_image = Image.new(mode="P",size=[rounded_resolution, rounded_resolution], color="white")
 pixel_arr = qr_image.load()
@@ -398,10 +501,11 @@ for y in range(MODULES_PER_EDGE-9, 8, -1):
 for y in range(9, MODULES_PER_EDGE-8, 1):
     update_module(1, y, data_list.pop(0))
     update_module(0, y, data_list.pop(0))
-        
-            
+
+
 # apply masks
 
+# make copies of the original unmasked QR code
 qr_image_mask_0 = qr_image.copy()
 qr_image_mask_1 = qr_image.copy()
 qr_image_mask_2 = qr_image.copy()
@@ -411,45 +515,83 @@ qr_image_mask_5 = qr_image.copy()
 qr_image_mask_6 = qr_image.copy()
 qr_image_mask_7 = qr_image.copy()
 
+# mask 0
 pixel_arr = qr_image_mask_0.load()
 apply_mask(mask_num_0)
 add_format_bits(ERR_CORR_LVL, 0)
-qr_image_mask_0.show()
+min_mask_score = calc_mask_score()
+qr_image = qr_image_mask_0
 
-# pixel_arr = qr_image_mask_1.load()
-# apply_mask(mask_num_1)
-# add_format_bits(ERR_CORR_LVL, 1)
-# qr_image_mask_1.show()
+# mask 1
+pixel_arr = qr_image_mask_1.load()
+apply_mask(mask_num_1)
+add_format_bits(ERR_CORR_LVL, 1)
+mask_score = calc_mask_score()
+if mask_score < min_mask_score:
+    min_mask_score = mask_score
+    qr_image = qr_image_mask_1
 
-# pixel_arr = qr_image_mask_2.load()
-# apply_mask(mask_num_2)
-# add_format_bits(ERR_CORR_LVL, 2)
-# qr_image_mask_2.show()
+# mask 2
+pixel_arr = qr_image_mask_2.load()
+apply_mask(mask_num_2)
+add_format_bits(ERR_CORR_LVL, 2)
+mask_score = calc_mask_score()
+if mask_score < min_mask_score:
+    min_mask_score = mask_score
+    qr_image = qr_image_mask_2
 
-# pixel_arr = qr_image_mask_3.load()
-# apply_mask(mask_num_3)
-# add_format_bits(ERR_CORR_LVL, 3)
-# qr_image_mask_3.show()
+# mask 3
+pixel_arr = qr_image_mask_3.load()
+apply_mask(mask_num_3)
+add_format_bits(ERR_CORR_LVL, 3)
+mask_score = calc_mask_score()
+if mask_score < min_mask_score:
+    min_mask_score = mask_score
+    qr_image = qr_image_mask_3
 
-# pixel_arr = qr_image_mask_4.load()
-# apply_mask(mask_num_4)
-# add_format_bits(ERR_CORR_LVL, 4)
-# qr_image_mask_4.show()
+# mask 4
+pixel_arr = qr_image_mask_4.load()
+apply_mask(mask_num_4)
+add_format_bits(ERR_CORR_LVL, 4)
+mask_score = calc_mask_score()
+if mask_score < min_mask_score:
+    min_mask_score = mask_score
+    qr_image = qr_image_mask_4
 
-# pixel_arr = qr_image_mask_5.load()
-# apply_mask(mask_num_5)
-# add_format_bits(ERR_CORR_LVL, 5)
-# qr_image_mask_5.show()
+# mask 5
+pixel_arr = qr_image_mask_5.load()
+apply_mask(mask_num_5)
+add_format_bits(ERR_CORR_LVL, 5)
+mask_score = calc_mask_score()
+if mask_score < min_mask_score:
+    min_mask_score = mask_score
+    qr_image = qr_image_mask_5
 
-# pixel_arr = qr_image_mask_6.load()
-# apply_mask(mask_num_6)
-# add_format_bits(ERR_CORR_LVL, 6)
-# qr_image_mask_6.show()
+# mask 6
+pixel_arr = qr_image_mask_6.load()
+apply_mask(mask_num_6)
+add_format_bits(ERR_CORR_LVL, 6)
+mask_score = calc_mask_score()
+if mask_score < min_mask_score:
+    min_mask_score = mask_score
+    qr_image = qr_image_mask_6
 
-# pixel_arr = qr_image_mask_7.load()
-# apply_mask(mask_num_7)
-# add_format_bits(ERR_CORR_LVL, 7)
-# qr_image_mask_7.show()
+# mask 7
+pixel_arr = qr_image_mask_7.load()
+apply_mask(mask_num_7)
+add_format_bits(ERR_CORR_LVL, 7)
+mask_score = calc_mask_score()
+if mask_score < min_mask_score:
+    min_mask_score = mask_score
+    qr_image = qr_image_mask_7
+
+try:
+    qr_image.save("./" + data + ".png")
+except Exception as e:
+    print("Error saving file:", e)
+else:
+    print("QR code image saved as ./" + data + ".png")
+
 
 
 # TODO: if version > 7, we have to include the version number (https://www.thonky.com/qr-code-tutorial/format-version-information#version-information)
