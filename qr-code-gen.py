@@ -44,6 +44,32 @@ class GaloisField:
         
         return result
 
+class ModuleArray:
+    
+    def __init__(self, pixel_arr, module_size):
+        self.pixel_arr = pixel_arr
+        self.module_size = module_size
+        
+    def set_pixel_arr(self, pixel_arr):
+        self.pixel_arr = pixel_arr
+        
+    def get_pixel_arr(self):
+        return self.pixel_arr
+
+    def get_module(self, x, y):
+        # convert module x, y coords to real pixel coords
+        module_x = (x+1)*self.module_size
+        module_y = (y+1)*self.module_size
+        return self.pixel_arr[module_x,module_y]
+
+    def update_module(self, x, y, value):
+        # convert module x, y coords to real pixel coords
+        module_x = (x+1)*self.module_size
+        module_y = (y+1)*self.module_size
+        # for every pixel within that module, change its value
+        for i in range(module_x, module_x+self.module_size):
+            for j in range(module_y, module_y+self.module_size):
+                self.pixel_arr[i,j] = value
 
 
 # create a generator polynomial for the specified number of error correction words
@@ -81,108 +107,89 @@ def calculate_error_correction(message_ints, num_codewords, gf):
     # return the remainder (error correction codewords)
     return dividend[-len(padding):]
 
-# TODO: put the following two functions in a class where pixel_arr and module_size are instance variables
 
-def get_module(x, y):
-    global pixel_arr, module_size
-    # convert module x, y coords to real pixel coords
-    module_x = (x+1)*module_size
-    module_y = (y+1)*module_size
-    return pixel_arr[module_x,module_y]
-
-def update_module(x, y, value):
-    global pixel_arr, module_size
-    # convert module x, y coords to real pixel coords
-    module_x = (x+1)*module_size
-    module_y = (y+1)*module_size
-    # for every pixel within that module, change its value
-    for i in range(module_x, module_x+module_size):
-        for j in range(module_y, module_y+module_size):
-            pixel_arr[i,j] = value
-
-
-def mask_num_0(column, row):
-    module_val = get_module(column, row)
+def mask_num_0(module_arr, column, row):
+    module_val = module_arr.get_module(column, row)
     if (row + column) % 2 == 0:
         return not module_val
     else:
         return module_val
 
-def mask_num_1(column, row):
-    module_val = get_module(column, row)
+def mask_num_1(module_arr, column, row):
+    module_val = module_arr.get_module(column, row)
     if row % 2 == 0:
         return not module_val
     else:
         return module_val
 
-def mask_num_2(column, row):
-    module_val = get_module(column, row)
+def mask_num_2(module_arr, column, row):
+    module_val = module_arr.get_module(column, row)
     if column % 3 == 0:
         return not module_val
     else:
         return module_val
 
-def mask_num_3(column, row):
-    module_val = get_module(column, row)
+def mask_num_3(module_arr, column, row):
+    module_val = module_arr.get_module(column, row)
     if (row + column) % 3 == 0:
         return not module_val
     else:
         return module_val
 
-def mask_num_4(column, row):
-    module_val = get_module(column, row)
+def mask_num_4(module_arr, column, row):
+    module_val = module_arr.get_module(column, row)
     if (numpy.floor(row/2) + numpy.floor(column/3)) % 2 == 0:
         return not module_val
     else:
         return module_val
 
-def mask_num_5(column, row):
-    module_val = get_module(column, row)
+def mask_num_5(module_arr, column, row):
+    module_val = module_arr.get_module(column, row)
     if ((row * column) % 2) + ((row * column) % 3) == 0:
         return not module_val
     else:
         return module_val
 
-def mask_num_6(column, row):
-    module_val = get_module(column, row)
+def mask_num_6(module_arr, column, row):
+    module_val = module_arr.get_module(column, row)
     if (((row * column) % 2) + ((row * column) % 3)) % 2 == 0:
         return not module_val
     else:
         return module_val
 
-def mask_num_7(column, row):
-    module_val = get_module(column, row)
+def mask_num_7(module_arr, column, row):
+    module_val = module_arr.get_module(column, row)
     if (((row + column) % 2) + ((row * column) % 3)) % 2 == 0:
         return not module_val
     else:
         return module_val
 
 
-def apply_mask(mask_func):
+def apply_mask(module_arr, mask_func):
     
     # Data bits under the top right finder pattern
     for x in range(MODULES_PER_EDGE-8, MODULES_PER_EDGE, 1):
         for y in range(9, MODULES_PER_EDGE, 1):
-            update_module(x, y, mask_func(x, y))
+            module_arr.update_module(x, y, mask_func(module_arr, x, y))
             
     # Data bits between the left and right finder paterns
     for x in range(9, MODULES_PER_EDGE-8, 1):
         for y in range(0, MODULES_PER_EDGE, 1):
             if y == 6:
                 continue
-            update_module(x, y, mask_func(x, y))
+            module_arr.update_module(x, y, mask_func(module_arr, x, y))
             
     # Data bits between the top left and bottom left finder paterns
     for y in range(9, MODULES_PER_EDGE-8, 1):
-        update_module(8, y, mask_func(8, y))
-        update_module(7, y, mask_func(7, y))
+        module_arr.update_module(8, y, mask_func(module_arr, 8, y))
+        module_arr.update_module(7, y, mask_func(module_arr, 7, y))
     for x in range(0, 6, 1):
         for y in range(9, MODULES_PER_EDGE-8, 1):
-            update_module(x, y, mask_func(x, y))
+            module_arr.update_module(x, y, mask_func(module_arr, x, y))
     
     return
 
-def eval_condition_1():
+def eval_condition_1(module_arr):
     # Evaluation Condition #1: 5+ same-colored modules in a row/column
     penalty = 0
     prev_column = [-1] * MODULES_PER_EDGE
@@ -193,7 +200,7 @@ def eval_condition_1():
         prev_module = -1
 
         for y in range(0, MODULES_PER_EDGE):
-            curr_module = get_module(x, y)
+            curr_module = module_arr.get_module(x, y)
             
             # if the current module is the same color as the previous one, update consecutive_count
             if curr_module == prev_module:
@@ -227,16 +234,16 @@ def eval_condition_1():
 
     return penalty
 
-def eval_condition_2():
+def eval_condition_2(module_arr):
     # Evaluation Condition #2: 2x2 squares of the same color
     penalty = 0
     for x in range(0, MODULES_PER_EDGE-1):
         for y in range(0, MODULES_PER_EDGE-1):
-            if get_module(x, y) == get_module(x+1, y) == get_module(x, y+1) == get_module(x+1, y+1):
+            if module_arr.get_module(x, y) == module_arr.get_module(x+1, y) == module_arr.get_module(x, y+1) == module_arr.get_module(x+1, y+1):
                 penalty += 3
     return penalty
 
-def eval_condition_3():
+def eval_condition_3(module_arr):
     # Evaluation Condition #3: patterns of dark-light-dark-dark-dark-light-dark with 4 light on either side
     patt_1 = [0, 0, 0, 0, 1, 0, 1, 1, 1, 0, 1]
     patt_2 = [1, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0]
@@ -248,8 +255,8 @@ def eval_condition_3():
             test_list_vert = []
             test_list_horz = []
             for i in range(patt_len):
-                test_list_vert.append(get_module(x, y+i))
-                test_list_horz.append(get_module(x+i, y))
+                test_list_vert.append(module_arr.get_module(x, y+i))
+                test_list_horz.append(module_arr.get_module(x+i, y))
             if test_list_vert == patt_1 or test_list_vert == patt_2:
                 penalty += 40
             if test_list_horz == patt_1 or test_list_horz == patt_2:
@@ -257,14 +264,13 @@ def eval_condition_3():
                 
     return penalty
 
-def eval_condition_4():
+def eval_condition_4(module_arr):
     # Evaluation Condition #4: ratio of black to white modules 
-    
     dark_count = 0
     total_module_count = MODULES_PER_EDGE * MODULES_PER_EDGE
     for x in range(0, MODULES_PER_EDGE):
         for y in range(0, MODULES_PER_EDGE):
-            if get_module(x, y) == 1:
+            if module_arr.get_module(x, y) == 1:
                 dark_count += 1
 
     dark_percent = (dark_count/total_module_count) * 100
@@ -276,15 +282,15 @@ def eval_condition_4():
 
     return mult * 10
 
-def calc_mask_score():
-    penalty = eval_condition_1()
-    penalty += eval_condition_2()
-    penalty += eval_condition_3()
-    penalty += eval_condition_4()
+def calc_mask_score(module_arr):
+    penalty = eval_condition_1(module_arr)
+    penalty += eval_condition_2(module_arr)
+    penalty += eval_condition_3(module_arr)
+    penalty += eval_condition_4(module_arr)
     return penalty
             
 
-def add_format_bits(err_corr_lvl, mask_ver):
+def add_format_bits(module_arr, err_corr_lvl, mask_ver):
     ec_lvl_bits = f'{err_corr_lvl:02b}'
     mask_ver_bits = f'{mask_ver:03b}'
     format_bits = ec_lvl_bits + mask_ver_bits
@@ -324,17 +330,17 @@ def add_format_bits(err_corr_lvl, mask_ver):
     # add the format bits to the QR code
     format_list = [int(i) for i in list(format_bits)]
     for y in range(MODULES_PER_EDGE-1, MODULES_PER_EDGE-8, -1):
-        update_module(8, y, format_list.pop(0))
+        module_arr.update_module(8, y, format_list.pop(0))
     for y in range(8, -1, -1):
         if y == 6: continue
-        update_module(8, y, format_list.pop(0))
+        module_arr.update_module(8, y, format_list.pop(0))
 
     format_list = [int(i) for i in list(format_bits)]
     for x in range(0, 6, 1):
-        update_module(x, 8, format_list.pop(0))
-    update_module(7, 8, format_list.pop(0))
+        module_arr.update_module(x, 8, format_list.pop(0))
+    module_arr.update_module(7, 8, format_list.pop(0))
     for x in range(MODULES_PER_EDGE-8, MODULES_PER_EDGE, 1):
-        update_module(x, 8, format_list.pop(0))
+        module_arr.update_module(x, 8, format_list.pop(0))
 
 
 
@@ -439,28 +445,29 @@ module_size = int(rounded_resolution/(MODULES_PER_EDGE+2))
 qr_image = Image.new(mode="P",size=[rounded_resolution, rounded_resolution], color="white")
 pixel_arr = qr_image.load()
 
+module_arr = ModuleArray(pixel_arr, module_size)
 
 # Finder patterns
 for x, row in enumerate(FINDER_PATTERN):
     for y, value in enumerate(row):
-        update_module(x, y, value)
+        module_arr.update_module(x, y, value)
 for x, row in enumerate(FINDER_PATTERN):
     for y, value in enumerate(row):
-        update_module((MODULES_PER_EDGE-7)+x, y, value)
+        module_arr.update_module((MODULES_PER_EDGE-7)+x, y, value)
 for x, row in enumerate(FINDER_PATTERN):
     for y, value in enumerate(row):
-        update_module(x, (MODULES_PER_EDGE-7)+y, value)
+        module_arr.update_module(x, (MODULES_PER_EDGE-7)+y, value)
 
 # Timing patterns
 for x in range(7, MODULES_PER_EDGE-7):
     if x % 2 == 0:
-        update_module(x, 6, 1)
+        module_arr.update_module(x, 6, 1)
 for y in range(7, MODULES_PER_EDGE-7):
     if y % 2 == 0:
-        update_module(6, y, 1)
+        module_arr.update_module(6, y, 1)
         
 # Dark module: one module that is ALWAYS dark in ALL QR codes
-update_module(8, ((4 * VERSION_NUM) + 9), 1)
+module_arr.update_module(8, ((4 * VERSION_NUM) + 9), 1)
 
 # Add the data bits
 
@@ -469,38 +476,38 @@ data_list = [int(x) for x in list(content_bits)]
 # Data bits under the top right finder pattern
 for x in range(MODULES_PER_EDGE-1, MODULES_PER_EDGE-7, -4):
     for y in range(MODULES_PER_EDGE-1, 8, -1):
-        update_module(x, y, data_list.pop(0))
-        update_module(x-1, y, data_list.pop(0))
+        module_arr.update_module(x, y, data_list.pop(0))
+        module_arr.update_module(x-1, y, data_list.pop(0))
     for y in range(9, MODULES_PER_EDGE, 1):
-        update_module(x-2, y, data_list.pop(0))
-        update_module(x-3, y, data_list.pop(0))
+        module_arr.update_module(x-2, y, data_list.pop(0))
+        module_arr.update_module(x-3, y, data_list.pop(0))
 
 # Data bits between the left and right finder paterns
 for x in range(MODULES_PER_EDGE-9, 9, -4):
     for y in range(MODULES_PER_EDGE-1, -1, -1):
         if y == 6:
             continue
-        update_module(x, y, data_list.pop(0))
-        update_module(x-1, y, data_list.pop(0))
+        module_arr.update_module(x, y, data_list.pop(0))
+        module_arr.update_module(x-1, y, data_list.pop(0))
     for y in range(0, MODULES_PER_EDGE, 1):
         if y == 6:
             continue
-        update_module(x-2, y, data_list.pop(0))
-        update_module(x-3, y, data_list.pop(0))
+        module_arr.update_module(x-2, y, data_list.pop(0))
+        module_arr.update_module(x-3, y, data_list.pop(0))
         
 # Data bits between the top left and bottom left finder paterns
 for y in range(MODULES_PER_EDGE-9, 8, -1):
-    update_module(8, y, data_list.pop(0))
-    update_module(7, y, data_list.pop(0))
+    module_arr.update_module(8, y, data_list.pop(0))
+    module_arr.update_module(7, y, data_list.pop(0))
 for y in range(9, MODULES_PER_EDGE-8, 1):
-    update_module(5, y, data_list.pop(0))
-    update_module(4, y, data_list.pop(0))
+    module_arr.update_module(5, y, data_list.pop(0))
+    module_arr.update_module(4, y, data_list.pop(0))
 for y in range(MODULES_PER_EDGE-9, 8, -1):
-    update_module(3, y, data_list.pop(0))
-    update_module(2, y, data_list.pop(0))
+    module_arr.update_module(3, y, data_list.pop(0))
+    module_arr.update_module(2, y, data_list.pop(0))
 for y in range(9, MODULES_PER_EDGE-8, 1):
-    update_module(1, y, data_list.pop(0))
-    update_module(0, y, data_list.pop(0))
+    module_arr.update_module(1, y, data_list.pop(0))
+    module_arr.update_module(0, y, data_list.pop(0))
 
 
 # apply masks
@@ -516,71 +523,71 @@ qr_image_mask_6 = qr_image.copy()
 qr_image_mask_7 = qr_image.copy()
 
 # mask 0
-pixel_arr = qr_image_mask_0.load()
-apply_mask(mask_num_0)
-add_format_bits(ERR_CORR_LVL, 0)
-min_mask_score = calc_mask_score()
+module_arr.set_pixel_arr(qr_image_mask_0.load())
+apply_mask(module_arr, mask_num_0)
+add_format_bits(module_arr, ERR_CORR_LVL, 0)
+min_mask_score = calc_mask_score(module_arr)
 qr_image = qr_image_mask_0
 
 # mask 1
-pixel_arr = qr_image_mask_1.load()
-apply_mask(mask_num_1)
-add_format_bits(ERR_CORR_LVL, 1)
-mask_score = calc_mask_score()
+module_arr.set_pixel_arr(qr_image_mask_1.load())
+apply_mask(module_arr, mask_num_1)
+add_format_bits(module_arr, ERR_CORR_LVL, 1)
+mask_score = calc_mask_score(module_arr)
 if mask_score < min_mask_score:
     min_mask_score = mask_score
     qr_image = qr_image_mask_1
 
 # mask 2
-pixel_arr = qr_image_mask_2.load()
-apply_mask(mask_num_2)
-add_format_bits(ERR_CORR_LVL, 2)
-mask_score = calc_mask_score()
+module_arr.set_pixel_arr(qr_image_mask_2.load())
+apply_mask(module_arr, mask_num_2)
+add_format_bits(module_arr, ERR_CORR_LVL, 2)
+mask_score = calc_mask_score(module_arr)
 if mask_score < min_mask_score:
     min_mask_score = mask_score
     qr_image = qr_image_mask_2
 
 # mask 3
-pixel_arr = qr_image_mask_3.load()
-apply_mask(mask_num_3)
-add_format_bits(ERR_CORR_LVL, 3)
-mask_score = calc_mask_score()
+module_arr.set_pixel_arr(qr_image_mask_3.load())
+apply_mask(module_arr, mask_num_3)
+add_format_bits(module_arr, ERR_CORR_LVL, 3)
+mask_score = calc_mask_score(module_arr)
 if mask_score < min_mask_score:
     min_mask_score = mask_score
     qr_image = qr_image_mask_3
 
 # mask 4
-pixel_arr = qr_image_mask_4.load()
-apply_mask(mask_num_4)
-add_format_bits(ERR_CORR_LVL, 4)
-mask_score = calc_mask_score()
+module_arr.set_pixel_arr(qr_image_mask_4.load())
+apply_mask(module_arr, mask_num_4)
+add_format_bits(module_arr, ERR_CORR_LVL, 4)
+mask_score = calc_mask_score(module_arr)
 if mask_score < min_mask_score:
     min_mask_score = mask_score
     qr_image = qr_image_mask_4
 
 # mask 5
-pixel_arr = qr_image_mask_5.load()
-apply_mask(mask_num_5)
-add_format_bits(ERR_CORR_LVL, 5)
-mask_score = calc_mask_score()
+module_arr.set_pixel_arr(qr_image_mask_5.load())
+apply_mask(module_arr, mask_num_5)
+add_format_bits(module_arr, ERR_CORR_LVL, 5)
+mask_score = calc_mask_score(module_arr)
 if mask_score < min_mask_score:
     min_mask_score = mask_score
     qr_image = qr_image_mask_5
 
 # mask 6
-pixel_arr = qr_image_mask_6.load()
-apply_mask(mask_num_6)
-add_format_bits(ERR_CORR_LVL, 6)
-mask_score = calc_mask_score()
+module_arr.set_pixel_arr(qr_image_mask_6.load())
+apply_mask(module_arr, mask_num_6)
+add_format_bits(module_arr, ERR_CORR_LVL, 6)
+mask_score = calc_mask_score(module_arr)
 if mask_score < min_mask_score:
     min_mask_score = mask_score
     qr_image = qr_image_mask_6
 
 # mask 7
-pixel_arr = qr_image_mask_7.load()
-apply_mask(mask_num_7)
-add_format_bits(ERR_CORR_LVL, 7)
-mask_score = calc_mask_score()
+module_arr.set_pixel_arr(qr_image_mask_7.load())
+apply_mask(module_arr, mask_num_7)
+add_format_bits(module_arr, ERR_CORR_LVL, 7)
+mask_score = calc_mask_score(module_arr)
 if mask_score < min_mask_score:
     min_mask_score = mask_score
     qr_image = qr_image_mask_7
@@ -590,7 +597,7 @@ try:
 except Exception as e:
     print("Error saving file:", e)
 else:
-    print("QR code image saved as ./" + data + ".png")
+    print("Output saved as ./" + data + ".png")
 
 
 
