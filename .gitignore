@@ -1,1 +1,4 @@
+__pycache__
+
+# Ignore generated QR codes
 *.png
