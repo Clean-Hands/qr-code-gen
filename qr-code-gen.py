@@ -1,6 +1,8 @@
 from PIL import Image
 from masks import QrMask
 
+
+
 class GaloisField:
     def __init__(self):
         # initialize exp and log tables for GF(256)
@@ -30,7 +32,6 @@ class GaloisField:
             return 0
         return self.exp[(self.log[a] - self.log[b] + 255) % 255]
 
-
     # multiply two polynomials in GF(256)
     # each polynomial is represented as a list of coefficients from highest to lowest degree
     def multiply_polynomials(self, poly1, poly2):
@@ -44,11 +45,19 @@ class GaloisField:
         
         return result
 
+
+
 class ModuleArray:
     
     def __init__(self, pixel_arr, module_size):
         self.pixel_arr = pixel_arr
         self.module_size = module_size
+        self.protected_modules = []
+        self.ALIGNMENT_PATTERN = [[1,1,1,1,1],
+                                  [1,0,0,0,1],
+                                  [1,0,1,0,1],
+                                  [1,0,0,0,1],
+                                  [1,1,1,1,1]]
         
     def set_pixel_arr(self, pixel_arr):
         self.pixel_arr = pixel_arr
@@ -63,6 +72,9 @@ class ModuleArray:
         return self.pixel_arr[module_x,module_y]
 
     def update_module(self, x, y, value):
+        # if we are not allowed to update this module, return error
+        if [x, y] in self.protected_modules:
+            return 1
         # convert module x, y coords to real pixel coords
         module_x = (x+1)*self.module_size
         module_y = (y+1)*self.module_size
@@ -70,6 +82,34 @@ class ModuleArray:
         for i in range(module_x, module_x+self.module_size):
             for j in range(module_y, module_y+self.module_size):
                 self.pixel_arr[i,j] = value
+        return 0
+    
+    def add_alignment_pattern(self, x, y):
+        for x_shift, row in enumerate(self.ALIGNMENT_PATTERN):
+            for y_shift, value in enumerate(row):
+                align_x = x + x_shift - 2
+                align_y = y + y_shift - 2
+                self.update_module(align_x, align_y, value)
+                self.protected_modules.append([align_x, align_y])
+
+                
+
+class MovableHeadArray:
+    
+    def __init__(self, data_bits):
+        self.data_bits = data_bits
+        self.curr_index = 0
+        
+    def get_head(self):
+        try:
+            return self.data_bits[self.curr_index]
+        # If we try to get a bit after the end of the data bits, just return 0 
+        except:
+            return 0
+    
+    def set_head(self, value):
+        self.data_bits[self.curr_index] = value
+        
 
 
 # create a generator polynomial for the specified number of error correction words
@@ -133,16 +173,17 @@ FINDER_PATTERN = [[1,1,1,1,1,1,1],
 
 # capacities = [19,16,13,9,34,28,22,16,55,44,34,26,80,64,48,36,108,86,62,46,136,108,76,60,156,124,88,66,194,154,110,86,232,182,132,100,274,216,154,122,324,254,180,140,370,290,206,158,428,334,244,180,461,365,261,197,523,415,295,223,589,453,325,253,647,507,367,283,721,563,397,313,795,627,445,341,861,669,485,385,932,714,512,406,1006,782,568,442,1094,860,614,464,1174,914,664,514,1276,1000,718,538,1370,1062,754,596,1468,1128,808,628,1531,1193,871,661,1631,1267,911,701,1735,1373,985,745,1843,1455,1033,793,1955,1541,1115,845,2071,1631,1171,901,2191,1725,1231,961,2306,1812,1286,986,2434,1914,1354,1054,2566,1992,1426,1096,2702,2102,1502,1142,2812,2216,1582,1222,2956,2334,1666,1276]
 # capacities = [7, 10, 13, 17, 10, 16, 22, 28]
+# capacities = [17, 14, 11, 7, 32, 26, 20, 14, 53, 42, 32, 24, 78, 62, 46, 34, 106, 84, 60, 44, 134, 106, 74, 58, 154, 122, 86, 64, 192, 152, 108, 84, 230, 180, 130, 98, 271, 213, 151, 119, 321, 251, 177, 137, 367, 287, 203, 155, 425, 331, 241, 177, 458, 362, 258, 194, 520, 412, 292, 220, 586, 450, 322, 250, 644, 504, 364, 280, 718, 560, 394, 310, 792, 624, 442, 338, 858, 666, 482, 382, 929, 711, 509, 403, 1003, 779, 565, 439, 1091, 857, 611, 461, 1171, 911, 661, 511, 1273, 997, 715, 535, 1367, 1059, 751, 593, 1465, 1125, 805, 625, 1528, 1190, 868, 658, 1628, 1264, 908, 698, 1732, 1370, 982, 742, 1840, 1452, 1030, 790, 1952, 1538, 1112, 842, 2068, 1628, 1168, 898, 2188, 1722, 1228, 958, 2303, 1809, 1283, 983, 2431, 1911, 1351, 1051, 2563, 1989, 1423, 1093, 2699, 2099, 1499, 1139, 2809, 2213, 1579, 1219, 2953, 2331, 1663, 1273]
 # print("[", end="")
 # for i in range(0, len(capacities), 4):
-#     print(f"[{8*capacities[i+3]}, {8*capacities[i+2]}, {8*capacities[i+1]}, {8*capacities[i]}], ", end="")
+#     print(f"[{capacities[i+3]}, {capacities[i+2]}, {capacities[i+1]}, {capacities[i]}], ", end="")
 # print("]", end="")
     
 # exit()
     
 
 # Format: MAX_DATA_BITS[version_number, error_correction_level]
-# where error_correction_level 0=L, 1=M, 2=Q, 3=H
+# where error_correction_level 0=H, 1=Q, 2=M, 3=L
 # but ERR_CORR_LVL 0=M, 1=L, 2=H, 3=Q
 MAX_DATA_BITS_ARR = [[72, 104, 128, 152],
                      [128, 176, 224, 272],
@@ -186,22 +227,26 @@ MAX_DATA_BITS_ARR = [[72, 104, 128, 152],
                      [10208, 13328, 18672, 23648]]
 
 # Currently only has data for version 1 and 2
-NUM_OF_ERR_CORR_CODEWORDS_ARR = [[17, 13, 10, 7], 
-                                 [28, 22, 16, 10]]
+EC_CW_COUNT_ARR = [[17, 13, 10, 7],
+                   [28, 22, 16, 10]]
 
-# data = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-data = "Hello, world!"
+# Currently only has data for versions 2 - 6
+ALIGNMENT_PATTERN_LOCS = [18, 22, 26, 30, 34]
+
+# Currently only has data for versions 1 - 4
+# [blocks_count, data_cw_count, ecc_cw_count]
+CODEWORD_BLOCKS = [[[1, 9, 17], [1, 13, 13], [1, 16, 10], [1, 19, 7]],      # Ver. 1 [H, Q, M, L]
+                   [[1, 16, 28], [1, 22, 22], [1, 28, 16], [1, 34, 10]],    # Ver. 2 [H, Q, M, L]
+                   [[2, 13, 22], [2, 17, 18], [1, 44, 26], [1, 55, 15]],    # Ver. 3 [H, Q, M, L]
+                   [[4, 9, 16], [2, 24, 26], [2, 32, 18], [1, 80, 20]]]     # Ver. 4 [H, Q, M, L]
+
+
+
+data = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
 
 MODE_BITS = "0100" # byte mode
 
-char_count = f'{len(data):08b}' # for byte mode, char_count needs to be 8 bits long
-
-# We are going to use 1L for a proof of concept
-# VERSION_NUM = 1
-# ERR_CORR_LVL = 1 #L
-# MAX_DATA_BITS = 19 * 8 # 1L
-# NUM_OF_ERR_CORR_CODEWORDS = int(26 - (MAX_DATA_BITS/8)) # this is only for ver 1 QR codes
-
+char_count = f'{len(data):08b}' # for byte mode, char_count needs to be 8 bits long (versions 1-9)
 
 # convert the characters to ISO 8859-1 encoding
 combined_enc_str = ""
@@ -210,34 +255,53 @@ for char in data:
 
 data_bits = MODE_BITS + char_count + combined_enc_str
 
-MAX_DATA_BITS = 0
+BLOCK_COUNT = -1
+DATA_CW_COUNT = -1
+EC_CW_COUNT = -1
+MAX_DATA_BITS = -1
+VERSION_NUM = -1
+ERR_CORR_LVL = -1
 
 # figure out which version and error correction level we should use
-for i, ver in enumerate(MAX_DATA_BITS_ARR):
-    if ver[0] >= len(data_bits): # H
-        MAX_DATA_BITS = ver[0]
-        NUM_OF_ERR_CORR_CODEWORDS = NUM_OF_ERR_CORR_CODEWORDS_ARR[i][0]
-        VERSION_NUM = i+1
+# cw_info[0] == info for ECL H
+# cw_info[1] == info for ECL Q
+# cw_info[2] == info for ECL M
+# cw_info[3] == info for ECL L
+for ver_num, cw_info in enumerate(CODEWORD_BLOCKS):
+    
+    # unpack the cw_info array
+    h_cw_info, q_cw_info, m_cw_info, l_cw_info = cw_info
+    
+    if (h_cw_info[0] * h_cw_info[1] * 8) >= len(data_bits): # H
+        BLOCK_COUNT, DATA_CW_COUNT, EC_CW_COUNT = h_cw_info
+        MAX_DATA_BITS = (BLOCK_COUNT * DATA_CW_COUNT * 8)
+        VERSION_NUM = ver_num + 1
         ERR_CORR_LVL = 2 # Error correction level H == 2
         break
-    elif ver[1] >= len(data_bits): # Q
-        MAX_DATA_BITS = ver[1]
-        NUM_OF_ERR_CORR_CODEWORDS = NUM_OF_ERR_CORR_CODEWORDS_ARR[i][1]
-        VERSION_NUM = i+1
+    elif (q_cw_info[0] * q_cw_info[1] * 8) >= len(data_bits): # Q
+        BLOCK_COUNT, DATA_CW_COUNT, EC_CW_COUNT = q_cw_info
+        MAX_DATA_BITS = (BLOCK_COUNT * DATA_CW_COUNT * 8)
+        VERSION_NUM = ver_num + 1
         ERR_CORR_LVL = 3 # Error correction level Q == 3
         break
-    elif ver[2] >= len(data_bits): # M
-        MAX_DATA_BITS = ver[2]
-        NUM_OF_ERR_CORR_CODEWORDS = NUM_OF_ERR_CORR_CODEWORDS_ARR[i][2]
-        VERSION_NUM = i+1
+    elif (m_cw_info[0] * m_cw_info[1] * 8) >= len(data_bits): # M
+        BLOCK_COUNT, DATA_CW_COUNT, EC_CW_COUNT = m_cw_info
+        MAX_DATA_BITS = (BLOCK_COUNT * DATA_CW_COUNT * 8)
+        VERSION_NUM = ver_num + 1
         ERR_CORR_LVL = 0 # Error correction level M == 0
         break
-    elif ver[3] >= len(data_bits): # L
-        MAX_DATA_BITS = ver[3]
-        NUM_OF_ERR_CORR_CODEWORDS = NUM_OF_ERR_CORR_CODEWORDS_ARR[i][3]
-        VERSION_NUM = i+1
+    elif (l_cw_info[0] * l_cw_info[1] * 8) >= len(data_bits): # L
+        BLOCK_COUNT, DATA_CW_COUNT, EC_CW_COUNT = l_cw_info
+        MAX_DATA_BITS = (BLOCK_COUNT * DATA_CW_COUNT * 8)
+        VERSION_NUM = ver_num + 1
         ERR_CORR_LVL = 1 # Error correction level L == 1
         break
+
+if VERSION_NUM == -1:
+    print("The data you entered is larger than the largest currently supported QR code version. The current maximum is", CODEWORD_BLOCKS[-1][-1][0] * CODEWORD_BLOCKS[-1][-1][1], "characters.")
+    exit(1)
+
+print(VERSION_NUM, MAX_DATA_BITS, ERR_CORR_LVL, EC_CW_COUNT)
 
 # add up to 4 zeroes as a terminator, making sure we don't go over the max length
 i = 0
@@ -264,15 +328,36 @@ while i < len(data_bits):
     message_ints.append(int(data_bits[i:i+8], 2))
     i += 8
 
-# TODO: if we have a version high enough, break into blocks/groups
+# TODO: if we have a version high enough, break into groups
 
 # initialize Galois Field
 gf = GaloisField()
 
-# calculate error correction codewords
-error_corr_ints = calculate_error_correction(message_ints, NUM_OF_ERR_CORR_CODEWORDS, gf)
+content_ints = []
 
-content_ints = message_ints + error_corr_ints
+# data from messages and error correction codes must be interleaved as following:
+# first message int from first block, first message int from second block, second message int from first block, second message int from second block, etc.
+# immediately following the message ints, the error correction codes are interleaved:
+# first ec int from first block, first ec int from second block, second ec int from first block, second ec from second block, etc.
+
+# TODO: break into groups
+
+message_ints_blocks = []
+for block in range(BLOCK_COUNT):
+    message_ints_blocks.append(message_ints[block*DATA_CW_COUNT:(block+1)*DATA_CW_COUNT])
+
+# calculate error correction codewords
+error_corr_blocks = []
+for block in message_ints_blocks:
+    error_corr_blocks.append(calculate_error_correction(block, EC_CW_COUNT, gf))
+
+for i in range(DATA_CW_COUNT):
+    for j in range(BLOCK_COUNT):
+        content_ints.append(message_ints_blocks[j][i])
+
+for i in range(EC_CW_COUNT):
+    for j in range(BLOCK_COUNT):
+        content_ints.append(error_corr_blocks[j][i])
 
 content_bits = ""
 for cont_int in content_ints:
@@ -289,6 +374,10 @@ module_size = int(rounded_resolution/(MODULES_PER_EDGE+2))
 
 qr_image = Image.new(mode="P",size=[rounded_resolution, rounded_resolution], color="white")
 pixel_arr = qr_image.load()
+
+print(len(content_bits))
+data_list = MovableHeadArray([int(x) for x in list(content_bits)])
+# data_list = MovableHeadArray([1 for x in list(content_bits)])
 
 module_arr = ModuleArray(pixel_arr, module_size)
 
@@ -314,56 +403,58 @@ for y in range(7, MODULES_PER_EDGE-7):
 # Dark module: one module that is ALWAYS dark in ALL QR codes
 module_arr.update_module(8, ((4 * VERSION_NUM) + 9), 1)
 
-# Add the data bits
+if VERSION_NUM > 1:
+    module_arr.add_alignment_pattern(ALIGNMENT_PATTERN_LOCS[VERSION_NUM-2], ALIGNMENT_PATTERN_LOCS[VERSION_NUM-2])
 
-data_list = [int(x) for x in list(content_bits)]
+# Add the data bits
 
 # Data bits under the top right finder pattern
 for x in range(MODULES_PER_EDGE-1, MODULES_PER_EDGE-7, -4):
     for y in range(MODULES_PER_EDGE-1, 8, -1):
-        module_arr.update_module(x, y, data_list.pop(0))
-        module_arr.update_module(x-1, y, data_list.pop(0))
+        data_list.curr_index += 1 if module_arr.update_module(x, y, data_list.get_head()) == 0 else 0
+        data_list.curr_index += 1 if module_arr.update_module(x-1, y, data_list.get_head()) == 0 else 0
     for y in range(9, MODULES_PER_EDGE, 1):
-        module_arr.update_module(x-2, y, data_list.pop(0))
-        module_arr.update_module(x-3, y, data_list.pop(0))
+        data_list.curr_index += 1 if module_arr.update_module(x-2, y, data_list.get_head()) == 0 else 0
+        data_list.curr_index += 1 if module_arr.update_module(x-3, y, data_list.get_head()) == 0 else 0
 
 # Data bits between the left and right finder paterns
 for x in range(MODULES_PER_EDGE-9, 9, -4):
     for y in range(MODULES_PER_EDGE-1, -1, -1):
         if y == 6:
             continue
-        module_arr.update_module(x, y, data_list.pop(0))
-        module_arr.update_module(x-1, y, data_list.pop(0))
+        data_list.curr_index += 1 if module_arr.update_module(x, y, data_list.get_head()) == 0 else 0
+        data_list.curr_index += 1 if module_arr.update_module(x-1, y, data_list.get_head()) == 0 else 0
     for y in range(0, MODULES_PER_EDGE, 1):
         if y == 6:
             continue
-        module_arr.update_module(x-2, y, data_list.pop(0))
-        module_arr.update_module(x-3, y, data_list.pop(0))
+        data_list.curr_index += 1 if module_arr.update_module(x-2, y, data_list.get_head()) == 0 else 0
+        data_list.curr_index += 1 if module_arr.update_module(x-3, y, data_list.get_head()) == 0 else 0
         
 # Data bits between the top left and bottom left finder paterns
 for y in range(MODULES_PER_EDGE-9, 8, -1):
-    module_arr.update_module(8, y, data_list.pop(0))
-    module_arr.update_module(7, y, data_list.pop(0))
+    data_list.curr_index += 1 if module_arr.update_module(8, y, data_list.get_head()) == 0 else 0
+    data_list.curr_index += 1 if module_arr.update_module(7, y, data_list.get_head()) == 0 else 0
 for y in range(9, MODULES_PER_EDGE-8, 1):
-    module_arr.update_module(5, y, data_list.pop(0))
-    module_arr.update_module(4, y, data_list.pop(0))
+    data_list.curr_index += 1 if module_arr.update_module(5, y, data_list.get_head()) == 0 else 0
+    data_list.curr_index += 1 if module_arr.update_module(4, y, data_list.get_head()) == 0 else 0
 for y in range(MODULES_PER_EDGE-9, 8, -1):
-    module_arr.update_module(3, y, data_list.pop(0))
-    module_arr.update_module(2, y, data_list.pop(0))
+    data_list.curr_index += 1 if module_arr.update_module(3, y, data_list.get_head()) == 0 else 0
+    data_list.curr_index += 1 if module_arr.update_module(2, y, data_list.get_head()) == 0 else 0
 for y in range(9, MODULES_PER_EDGE-8, 1):
-    module_arr.update_module(1, y, data_list.pop(0))
-    module_arr.update_module(0, y, data_list.pop(0))
+    data_list.curr_index += 1 if module_arr.update_module(1, y, data_list.get_head()) == 0 else 0
+    data_list.curr_index += 1 if module_arr.update_module(0, y, data_list.get_head()) == 0 else 0
 
 # apply mask
 qr_masks = QrMask(MODULES_PER_EDGE, ERR_CORR_LVL)
 qr_image = qr_masks.apply_best_mask(qr_image, module_arr)
 
 try:
-    qr_image.save("./" + data + ".png")
+    qr_image.save("./image.png")
 except Exception as e:
     print("Error saving file:", e)
 else:
-    print("Output saved as ./" + data + ".png")
+    pass
+    print("Output saved as ./image.png")
 
 
 
