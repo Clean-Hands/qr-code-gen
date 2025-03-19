@@ -203,7 +203,7 @@ FINDER_PATTERN = [[1,1,1,1,1,1,1],
 ALIGNMENT_PATTERN_LOCS = [18, 22, 26, 30, 34]
 
 
-# Currently only has data for versions 1 - 5
+# Currently only has data for versions 1 - 6
 CODEWORD_BLOCKS = [[CodewordCounts([[1, 9]], 17),           # 1H
                     CodewordCounts([[1, 13]], 13),          # 1Q
                     CodewordCounts([[1, 16]], 10),          # 1M
@@ -227,8 +227,12 @@ CODEWORD_BLOCKS = [[CodewordCounts([[1, 9]], 17),           # 1H
                    [CodewordCounts([[2, 11], [2, 12]], 22), # 5H
                     CodewordCounts([[2, 15], [2, 16]], 18), # 5Q
                     CodewordCounts([[2, 43]], 24),          # 5M
-                    CodewordCounts([[1, 108]], 26)]]        # 5L
-
+                    CodewordCounts([[1, 108]], 26)],        # 5L
+                   
+                   [CodewordCounts([[4, 15]], 28),          # 6H
+                    CodewordCounts([[4, 19]], 24),          # 6Q
+                    CodewordCounts([[4, 27]], 16),          # 6M
+                    CodewordCounts([[2, 68]], 18)]]         # 6L
 
 
 DATA = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
@@ -280,7 +284,7 @@ for ver_num, cw in enumerate(CODEWORD_BLOCKS):
         break
 
 if VERSION_NUM == -1:
-    print("The data you entered is larger than the largest currently supported QR code version. The current maximum is", int(CODEWORD_BLOCKS[-1][-1].getMaxDataBits()/8), "characters.")
+    print("The data you entered is larger than the largest currently supported QR code version. The current maximum is", int(CODEWORD_BLOCKS[-1][-1].getMaxDataBits()/8)-2, "characters.")
     exit(1)
 
 print(VERSION_NUM, EC_LVL)
