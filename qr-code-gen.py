@@ -287,8 +287,6 @@ if VERSION_NUM == -1:
     print("The data you entered is larger than the largest currently supported QR code version. The current maximum is", int(CODEWORD_BLOCKS[-1][-1].getMaxDataBits()/8)-2, "characters.")
     exit(1)
 
-print(VERSION_NUM, EC_LVL)
-
 # add up to 4 zeroes as a terminator, making sure we don't go over the max length
 i = 0
 while i < 4 and len(data_bits) < CW_INFO.getMaxDataBits():
@@ -456,13 +454,17 @@ for y in range(9, MODULES_PER_EDGE-8, 1):
 qr_masks = QrMask(MODULES_PER_EDGE, EC_LVL)
 qr_image = qr_masks.apply_best_mask(qr_image, module_arr)
 
+trans_ec_lvl = ["M", "L", "H", "Q"]
+
+filename = f"./image-{VERSION_NUM}{trans_ec_lvl[EC_LVL]}.png"
+
 try:
-    qr_image.save("./image.png")
+    qr_image.save(filename)
 except Exception as e:
     print("Error saving file:", e)
 else:
     pass
-    print("Output saved as ./image.png")
+    print(f"Output saved as {filename}")
 
 
 
