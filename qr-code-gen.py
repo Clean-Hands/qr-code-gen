@@ -176,10 +176,7 @@ class MovableHeadArray:
         # If we try to get a bit after the end of the data bits, just return 0 
         except:
             return 0
-        
-    def inc_head(self):
-        self.curr_index += 1
-    
+
     def set_head(self, value):
         self.data_bits[self.curr_index] = value
 
@@ -294,7 +291,7 @@ CODEWORD_BLOCKS = [[CodewordCounts([[1, 9]], 17),           # 1H
 
 
 DATA = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-DATA = "hello this is a test string that i am using"
+DATA = "hello this string that i am using is cool"
 
 MODE_BITS = "0100" # byte mode
 
@@ -448,15 +445,11 @@ module_arr = ModuleArray(pixel_arr, VERSION_NUM, MODULES_PER_EDGE, module_size)
 
 for x in range(MODULES_PER_EDGE-1, 9, -4):
     for y in range(MODULES_PER_EDGE-1, -1, -1):
-        if module_arr.update_module(x, y, data_list.get_head()) == 0:
-            data_list.inc_head()
-        if module_arr.update_module(x-1, y, data_list.get_head()) == 0:
-            data_list.inc_head()
+        data_list.curr_index += 1 if module_arr.update_module(x, y, data_list.get_head()) == 0 else 0
+        data_list.curr_index += 1 if module_arr.update_module(x-1, y, data_list.get_head()) == 0 else 0
     for y in range(0, MODULES_PER_EDGE, 1):
-        if module_arr.update_module(x-2, y, data_list.get_head()) == 0:
-            data_list.inc_head()
-        if module_arr.update_module(x-3, y, data_list.get_head()) == 0:
-            data_list.inc_head()
+        data_list.curr_index += 1 if module_arr.update_module(x-2, y, data_list.get_head()) == 0 else 0
+        data_list.curr_index += 1 if module_arr.update_module(x-3, y, data_list.get_head()) == 0 else 0
 # Add the data bits
 
 # Data bits under the top right finder pattern
@@ -487,25 +480,17 @@ for x in range(MODULES_PER_EDGE-1, 9, -4):
         
 # Data bits between the top left and bottom left finder paterns
 for y in range(MODULES_PER_EDGE-9, 8, -1):
-    if module_arr.update_module(8, y, data_list.get_head()) == 0:
-        data_list.inc_head()
-    if module_arr.update_module(7, y, data_list.get_head()) == 0:
-        data_list.inc_head()
+    data_list.curr_index += 1 if module_arr.update_module(8, y, data_list.get_head()) == 0 else 0
+    data_list.curr_index += 1 if module_arr.update_module(7, y, data_list.get_head()) == 0 else 0
 for y in range(9, MODULES_PER_EDGE-8, 1):
-    if module_arr.update_module(5, y, data_list.get_head()) == 0:
-        data_list.inc_head()
-    if module_arr.update_module(4, y, data_list.get_head()) == 0:
-        data_list.inc_head()
+    data_list.curr_index += 1 if module_arr.update_module(5, y, data_list.get_head()) == 0 else 0
+    data_list.curr_index += 1 if module_arr.update_module(4, y, data_list.get_head()) == 0 else 0
 for y in range(MODULES_PER_EDGE-9, 8, -1):
-    if module_arr.update_module(3, y, data_list.get_head()) == 0:
-        data_list.inc_head()
-    if module_arr.update_module(2, y, data_list.get_head()) == 0:
-        data_list.inc_head()
+    data_list.curr_index += 1 if module_arr.update_module(3, y, data_list.get_head()) == 0 else 0
+    data_list.curr_index += 1 if module_arr.update_module(2, y, data_list.get_head()) == 0 else 0
 for y in range(9, MODULES_PER_EDGE-8, 1):
-    if module_arr.update_module(1, y, data_list.get_head()) == 0:
-        data_list.inc_head()
-    if module_arr.update_module(0, y, data_list.get_head()) == 0:
-        data_list.inc_head()
+    data_list.curr_index += 1 if module_arr.update_module(1, y, data_list.get_head()) == 0 else 0
+    data_list.curr_index += 1 if module_arr.update_module(0, y, data_list.get_head()) == 0 else 0
 
 # apply mask
 qr_masks = QrMask(MODULES_PER_EDGE, EC_LVL)
