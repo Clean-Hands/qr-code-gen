@@ -49,15 +49,36 @@ class GaloisField:
 
 class ModuleArray:
     
-    def __init__(self, pixel_arr, module_size):
+    def __init__(self, pixel_arr, version_num, modules_per_edge, module_size):
         self.pixel_arr = pixel_arr
+        self.version_num = version_num
+        self.modules_per_edge = modules_per_edge
         self.module_size = module_size
         self.protected_modules = []
+        self.FINDER_PATTERN = [[0,0,0,0,0,0,0,0,0],
+                               [0,1,1,1,1,1,1,1,0],
+                               [0,1,0,0,0,0,0,1,0],
+                               [0,1,0,1,1,1,0,1,0],
+                               [0,1,0,1,1,1,0,1,0],
+                               [0,1,0,1,1,1,0,1,0],
+                               [0,1,0,0,0,0,0,1,0],
+                               [0,1,1,1,1,1,1,1,0],
+                               [0,0,0,0,0,0,0,0,0]]
         self.ALIGNMENT_PATTERN = [[1,1,1,1,1],
                                   [1,0,0,0,1],
                                   [1,0,1,0,1],
                                   [1,0,0,0,1],
                                   [1,1,1,1,1]]
+        
+        # Currently only has data for versions 2 - 6
+        self.ALIGNMENT_PATTERN_LOCS = [18, 22, 26, 30, 34]
+        
+        self.add_finder_patterns()
+        self.add_timing_patterns()
+        self.add_dark_module()
+        self.protect_format_bits()
+        if self.version_num > 1:
+            self.add_alignment_patterns()
         
     def set_pixel_arr(self, pixel_arr):
         self.pixel_arr = pixel_arr
@@ -69,11 +90,11 @@ class ModuleArray:
         # convert module x, y coords to real pixel coords
         module_x = (x+1)*self.module_size
         module_y = (y+1)*self.module_size
-        return self.pixel_arr[module_x,module_y]
+        return self.pixel_arr[module_x, module_y]
 
-    def update_module(self, x, y, value):
-        # if we are not allowed to update this module, return error
-        if [x, y] in self.protected_modules:
+    def update_module(self, x, y, value, force=False):
+        # if we are not allowed to update this module, return error        
+        if [x, y] in self.protected_modules and not force:
             return 1
         # convert module x, y coords to real pixel coords
         module_x = (x+1)*self.module_size
@@ -84,11 +105,59 @@ class ModuleArray:
                 self.pixel_arr[i,j] = value
         return 0
     
-    def add_alignment_pattern(self, x, y):
+    def add_finder_patterns(self):
+        # Finder patterns
+        for x, row in enumerate(self.FINDER_PATTERN):
+            for y, value in enumerate(row):
+                # Top left finder pattern
+                self.update_module(x-1, y-1, value)
+                self.protected_modules.append([x-1, y-1])
+                # Top right finder pattern
+                self.update_module((self.modules_per_edge-7)+x-1, y-1, value)
+                self.protected_modules.append([(self.modules_per_edge-7)+x-1, y-1])
+                # Bottom left finder pattern
+                self.update_module(x-1, (self.modules_per_edge-7)+y-1, value)
+                self.protected_modules.append([x-1, (self.modules_per_edge-7)+y-1])
+    
+    def protect_format_bits(self):
+        if self.version_num > 6:
+            #TODO: different format bit location
+            pass
+        else:
+             # format bits to the right of the bottom-left finder pattern
+            for y in range(0, self.modules_per_edge, 1):
+                if y not in range(9, self.modules_per_edge-8):
+                    # self.update_module(8, y, 1, True)
+                    self.protected_modules.append([8, y])
+            
+            # format bits under the top left finder pattern
+            for x in range(0, self.modules_per_edge, 1):
+                if x not in range(9, self.modules_per_edge-8):
+                    # self.update_module(x, 8, 1, True)
+                    self.protected_modules.append([x, 8])
+
+    def add_timing_patterns(self):
+        # Timing patterns
+        for x in range(7, self.modules_per_edge-7):
+            if x % 2 == 0:
+                self.update_module(x, 6, 1, True)
+            self.protected_modules.append([x, 6])
+        for y in range(7, self.modules_per_edge-7):
+            if y % 2 == 0:
+                self.update_module(6, y, 1, True)
+            self.protected_modules.append([6, y])
+                
+    # Dark module: one module that is ALWAYS dark in ALL QR codes
+    def add_dark_module(self):
+        self.update_module(8, ((4 * self.version_num) + 9), 1, True)
+        self.protected_modules.append([8, ((4 * self.version_num) + 9) ])
+    
+    def add_alignment_patterns(self):
+        pos = self.ALIGNMENT_PATTERN_LOCS[self.version_num-2]
         for x_shift, row in enumerate(self.ALIGNMENT_PATTERN):
             for y_shift, value in enumerate(row):
-                align_x = x + x_shift - 2
-                align_y = y + y_shift - 2
+                align_x = pos + x_shift - 2
+                align_y = pos + y_shift - 2
                 self.update_module(align_x, align_y, value)
                 self.protected_modules.append([align_x, align_y])
 
@@ -102,10 +171,14 @@ class MovableHeadArray:
         
     def get_head(self):
         try:
+            # print(self.curr_index)
             return self.data_bits[self.curr_index]
         # If we try to get a bit after the end of the data bits, just return 0 
         except:
             return 0
+        
+    def inc_head(self):
+        self.curr_index += 1
     
     def set_head(self, value):
         self.data_bits[self.curr_index] = value
@@ -188,21 +261,6 @@ def calculate_error_correction(message_ints, num_codewords, gf):
 # -m, --mask [mask number]: override mask number
 
 
-
-FINDER_PATTERN = [[1,1,1,1,1,1,1],
-                  [1,0,0,0,0,0,1],
-                  [1,0,1,1,1,0,1],
-                  [1,0,1,1,1,0,1],
-                  [1,0,1,1,1,0,1],
-                  [1,0,0,0,0,0,1],
-                  [1,1,1,1,1,1,1]]
-
-
-
-# Currently only has data for versions 2 - 6
-ALIGNMENT_PATTERN_LOCS = [18, 22, 26, 30, 34]
-
-
 # Currently only has data for versions 1 - 6
 CODEWORD_BLOCKS = [[CodewordCounts([[1, 9]], 17),           # 1H
                     CodewordCounts([[1, 13]], 13),          # 1Q
@@ -236,6 +294,7 @@ CODEWORD_BLOCKS = [[CodewordCounts([[1, 9]], 17),           # 1H
 
 
 DATA = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+DATA = "hello this is a test string that i am using"
 
 MODE_BITS = "0100" # byte mode
 
@@ -385,70 +444,68 @@ pixel_arr = qr_image.load()
 
 data_list = MovableHeadArray([int(x) for x in list(content_bits)])
 
-module_arr = ModuleArray(pixel_arr, module_size)
+module_arr = ModuleArray(pixel_arr, VERSION_NUM, MODULES_PER_EDGE, module_size)
 
-# Finder patterns
-for x, row in enumerate(FINDER_PATTERN):
-    for y, value in enumerate(row):
-        module_arr.update_module(x, y, value)
-for x, row in enumerate(FINDER_PATTERN):
-    for y, value in enumerate(row):
-        module_arr.update_module((MODULES_PER_EDGE-7)+x, y, value)
-for x, row in enumerate(FINDER_PATTERN):
-    for y, value in enumerate(row):
-        module_arr.update_module(x, (MODULES_PER_EDGE-7)+y, value)
-
-# Timing patterns
-for x in range(7, MODULES_PER_EDGE-7):
-    if x % 2 == 0:
-        module_arr.update_module(x, 6, 1)
-for y in range(7, MODULES_PER_EDGE-7):
-    if y % 2 == 0:
-        module_arr.update_module(6, y, 1)
-        
-# Dark module: one module that is ALWAYS dark in ALL QR codes
-module_arr.update_module(8, ((4 * VERSION_NUM) + 9), 1)
-
-if VERSION_NUM > 1:
-    module_arr.add_alignment_pattern(ALIGNMENT_PATTERN_LOCS[VERSION_NUM-2], ALIGNMENT_PATTERN_LOCS[VERSION_NUM-2])
-
+for x in range(MODULES_PER_EDGE-1, 9, -4):
+    for y in range(MODULES_PER_EDGE-1, -1, -1):
+        if module_arr.update_module(x, y, data_list.get_head()) == 0:
+            data_list.inc_head()
+        if module_arr.update_module(x-1, y, data_list.get_head()) == 0:
+            data_list.inc_head()
+    for y in range(0, MODULES_PER_EDGE, 1):
+        if module_arr.update_module(x-2, y, data_list.get_head()) == 0:
+            data_list.inc_head()
+        if module_arr.update_module(x-3, y, data_list.get_head()) == 0:
+            data_list.inc_head()
 # Add the data bits
 
 # Data bits under the top right finder pattern
-for x in range(MODULES_PER_EDGE-1, MODULES_PER_EDGE-7, -4):
-    for y in range(MODULES_PER_EDGE-1, 8, -1):
-        data_list.curr_index += 1 if module_arr.update_module(x, y, data_list.get_head()) == 0 else 0
-        data_list.curr_index += 1 if module_arr.update_module(x-1, y, data_list.get_head()) == 0 else 0
-    for y in range(9, MODULES_PER_EDGE, 1):
-        data_list.curr_index += 1 if module_arr.update_module(x-2, y, data_list.get_head()) == 0 else 0
-        data_list.curr_index += 1 if module_arr.update_module(x-3, y, data_list.get_head()) == 0 else 0
+# for x in range(MODULES_PER_EDGE-1, MODULES_PER_EDGE-7, -4):
+#     for y in range(MODULES_PER_EDGE-1, 8, -1):
+#         data_list.curr_index += 1 if module_arr.update_module(x, y, data_list.get_head()) == 0 else 0
+#         data_list.curr_index += 1 if module_arr.update_module(x-1, y, data_list.get_head()) == 0 else 0
+#     for y in range(9, MODULES_PER_EDGE, 1):
+#         data_list.curr_index += 1 if module_arr.update_module(x-2, y, data_list.get_head()) == 0 else 0
+#         data_list.curr_index += 1 if module_arr.update_module(x-3, y, data_list.get_head()) == 0 else 0
 
 # Data bits between the left and right finder paterns
-for x in range(MODULES_PER_EDGE-9, 9, -4):
-    for y in range(MODULES_PER_EDGE-1, -1, -1):
-        if y == 6:
-            continue
-        data_list.curr_index += 1 if module_arr.update_module(x, y, data_list.get_head()) == 0 else 0
-        data_list.curr_index += 1 if module_arr.update_module(x-1, y, data_list.get_head()) == 0 else 0
-    for y in range(0, MODULES_PER_EDGE, 1):
-        if y == 6:
-            continue
-        data_list.curr_index += 1 if module_arr.update_module(x-2, y, data_list.get_head()) == 0 else 0
-        data_list.curr_index += 1 if module_arr.update_module(x-3, y, data_list.get_head()) == 0 else 0
+# for x in range(MODULES_PER_EDGE-9, 9, -4):
+#     for y in range(MODULES_PER_EDGE-1, -1, -1):
+#         if y == 6:
+#             continue
+#         if module_arr.update_module(x, y, data_list.get_head()) == 0:
+#             data_list.inc_head()
+#         if module_arr.update_module(x-1, y, data_list.get_head()) == 0:
+#             data_list.inc_head()
+#     for y in range(0, MODULES_PER_EDGE, 1):
+#         if y == 6:
+#             continue
+#         if module_arr.update_module(x-2, y, data_list.get_head()) == 0:
+#             data_list.inc_head()
+#         if module_arr.update_module(x-3, y, data_list.get_head()) == 0:
+#             data_list.inc_head()
         
 # Data bits between the top left and bottom left finder paterns
 for y in range(MODULES_PER_EDGE-9, 8, -1):
-    data_list.curr_index += 1 if module_arr.update_module(8, y, data_list.get_head()) == 0 else 0
-    data_list.curr_index += 1 if module_arr.update_module(7, y, data_list.get_head()) == 0 else 0
+    if module_arr.update_module(8, y, data_list.get_head()) == 0:
+        data_list.inc_head()
+    if module_arr.update_module(7, y, data_list.get_head()) == 0:
+        data_list.inc_head()
 for y in range(9, MODULES_PER_EDGE-8, 1):
-    data_list.curr_index += 1 if module_arr.update_module(5, y, data_list.get_head()) == 0 else 0
-    data_list.curr_index += 1 if module_arr.update_module(4, y, data_list.get_head()) == 0 else 0
+    if module_arr.update_module(5, y, data_list.get_head()) == 0:
+        data_list.inc_head()
+    if module_arr.update_module(4, y, data_list.get_head()) == 0:
+        data_list.inc_head()
 for y in range(MODULES_PER_EDGE-9, 8, -1):
-    data_list.curr_index += 1 if module_arr.update_module(3, y, data_list.get_head()) == 0 else 0
-    data_list.curr_index += 1 if module_arr.update_module(2, y, data_list.get_head()) == 0 else 0
+    if module_arr.update_module(3, y, data_list.get_head()) == 0:
+        data_list.inc_head()
+    if module_arr.update_module(2, y, data_list.get_head()) == 0:
+        data_list.inc_head()
 for y in range(9, MODULES_PER_EDGE-8, 1):
-    data_list.curr_index += 1 if module_arr.update_module(1, y, data_list.get_head()) == 0 else 0
-    data_list.curr_index += 1 if module_arr.update_module(0, y, data_list.get_head()) == 0 else 0
+    if module_arr.update_module(1, y, data_list.get_head()) == 0:
+        data_list.inc_head()
+    if module_arr.update_module(0, y, data_list.get_head()) == 0:
+        data_list.inc_head()
 
 # apply mask
 qr_masks = QrMask(MODULES_PER_EDGE, EC_LVL)
