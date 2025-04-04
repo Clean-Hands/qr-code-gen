@@ -226,18 +226,26 @@ class QrMask:
         
         # add the format bits to the QR code
         format_list = [int(i) for i in list(format_bits)]
+        
+        # format bits to the right of the bottom-left finder pattern
         for y in range(self.modules_per_edge-1, self.modules_per_edge-8, -1):
-            module_arr.update_module(8, y, format_list.pop(0))
+            module_arr.update_module(8, y, format_list.pop(0), True)
+        
+        # format bits to the right of the top-left finder pattern
         for y in range(8, -1, -1):
             if y == 6: continue
-            module_arr.update_module(8, y, format_list.pop(0))
+            module_arr.update_module(8, y, format_list.pop(0), True)
 
         format_list = [int(i) for i in list(format_bits)]
+        
+        # format bits under the top left finder pattern
         for x in range(0, 6, 1):
-            module_arr.update_module(x, 8, format_list.pop(0))
-        module_arr.update_module(7, 8, format_list.pop(0))
+            module_arr.update_module(x, 8, format_list.pop(0), True)
+        module_arr.update_module(7, 8, format_list.pop(0), True)
+        
+        # format bits under the top right finder pattern
         for x in range(self.modules_per_edge-8, self.modules_per_edge, 1):
-            module_arr.update_module(x, 8, format_list.pop(0))
+            module_arr.update_module(x, 8, format_list.pop(0), True)
 
     
     
