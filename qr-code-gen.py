@@ -171,7 +171,6 @@ class MovableHeadArray:
         
     def get_head(self):
         try:
-            # print(self.curr_index)
             return self.data_bits[self.curr_index]
         # If we try to get a bit after the end of the data bits, just return 0 
         except:
@@ -291,7 +290,6 @@ CODEWORD_BLOCKS = [[CodewordCounts([[1, 9]], 17),           # 1H
 
 
 DATA = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-DATA = "hello this string that i am using is cool"
 
 MODE_BITS = "0100" # byte mode
 
@@ -443,40 +441,14 @@ data_list = MovableHeadArray([int(x) for x in list(content_bits)])
 
 module_arr = ModuleArray(pixel_arr, VERSION_NUM, MODULES_PER_EDGE, module_size)
 
-for x in range(MODULES_PER_EDGE-1, 9, -4):
+# Add the data bits to the right of the left finder pattern
+for x in range(MODULES_PER_EDGE-1, 8, -4):
     for y in range(MODULES_PER_EDGE-1, -1, -1):
         data_list.curr_index += 1 if module_arr.update_module(x, y, data_list.get_head()) == 0 else 0
         data_list.curr_index += 1 if module_arr.update_module(x-1, y, data_list.get_head()) == 0 else 0
     for y in range(0, MODULES_PER_EDGE, 1):
         data_list.curr_index += 1 if module_arr.update_module(x-2, y, data_list.get_head()) == 0 else 0
         data_list.curr_index += 1 if module_arr.update_module(x-3, y, data_list.get_head()) == 0 else 0
-# Add the data bits
-
-# Data bits under the top right finder pattern
-# for x in range(MODULES_PER_EDGE-1, MODULES_PER_EDGE-7, -4):
-#     for y in range(MODULES_PER_EDGE-1, 8, -1):
-#         data_list.curr_index += 1 if module_arr.update_module(x, y, data_list.get_head()) == 0 else 0
-#         data_list.curr_index += 1 if module_arr.update_module(x-1, y, data_list.get_head()) == 0 else 0
-#     for y in range(9, MODULES_PER_EDGE, 1):
-#         data_list.curr_index += 1 if module_arr.update_module(x-2, y, data_list.get_head()) == 0 else 0
-#         data_list.curr_index += 1 if module_arr.update_module(x-3, y, data_list.get_head()) == 0 else 0
-
-# Data bits between the left and right finder paterns
-# for x in range(MODULES_PER_EDGE-9, 9, -4):
-#     for y in range(MODULES_PER_EDGE-1, -1, -1):
-#         if y == 6:
-#             continue
-#         if module_arr.update_module(x, y, data_list.get_head()) == 0:
-#             data_list.inc_head()
-#         if module_arr.update_module(x-1, y, data_list.get_head()) == 0:
-#             data_list.inc_head()
-#     for y in range(0, MODULES_PER_EDGE, 1):
-#         if y == 6:
-#             continue
-#         if module_arr.update_module(x-2, y, data_list.get_head()) == 0:
-#             data_list.inc_head()
-#         if module_arr.update_module(x-3, y, data_list.get_head()) == 0:
-#             data_list.inc_head()
         
 # Data bits between the top left and bottom left finder paterns
 for y in range(MODULES_PER_EDGE-9, 8, -1):
