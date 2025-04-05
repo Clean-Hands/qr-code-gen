@@ -70,15 +70,61 @@ class ModuleArray:
                                   [1,0,0,0,1],
                                   [1,1,1,1,1]]
         
-        # Currently only has data for versions 2 - 6
-        self.ALIGNMENT_PATTERN_LOCS = [18, 22, 26, 30, 34]
+        # Currently only has data for versions 2 - 13
+        self.ALIGNMENT_PATTERN_LOCS = [[6, 18],
+                                       [6, 22],
+                                       [6, 26],
+                                       [6, 30],
+                                       [6, 34],
+                                       [6, 22, 38],
+                                       [6, 24, 42],
+                                       [6, 26, 46],
+                                       [6, 28, 50],
+                                       [6, 30, 54],
+                                       [6, 32, 58],
+                                       [6, 34, 62]]
+        
+        self.FORMAT_STRINGS = ["000111110010010100",
+                               "001000010110111100",
+                               "001001101010011001",
+                               "001010010011010011",
+                               "001011101111110110",
+                               "001100011101100010",
+                               "001101100001000111",
+                               "001110011000001101",
+                               "001111100100101000",
+                               "010000101101111000",
+                               "010001010001011101",
+                               "010010101000010111",
+                               "010011010100110010",
+                               "010100100110100110",
+                               "010101011010000011",
+                               "010110100011001001",
+                               "010111011111101100",
+                               "011000111011000100",
+                               "011001000111100001",
+                               "011010111110101011",
+                               "011011000010001110",
+                               "011100110000011010",
+                               "011101001100111111",
+                               "011110110101110101",
+                               "011111001001010000",
+                               "100000100111010101",
+                               "100001011011110000",
+                               "100010100010111010",
+                               "100011011110011111",
+                               "100100101100001011",
+                               "100101010000101110",
+                               "100110101001100100",
+                               "100111010101000001",
+                               "101000110001101001"]
         
         self.add_finder_patterns()
-        self.add_timing_patterns()
-        self.add_dark_module()
-        self.protect_format_bits()
         if self.version_num > 1:
             self.add_alignment_patterns()
+        self.add_timing_patterns()
+        self.protect_format_bits()
+        self.add_dark_module()
         
     def set_pixel_arr(self, pixel_arr):
         self.pixel_arr = pixel_arr
@@ -92,9 +138,9 @@ class ModuleArray:
         module_y = (y+1)*self.module_size
         return self.pixel_arr[module_x, module_y]
 
-    def update_module(self, x, y, value, force=False):
+    def update_module(self, x, y, value, force_update=False):
         # if we are not allowed to update this module, return error        
-        if [x, y] in self.protected_modules and not force:
+        if [x, y] in self.protected_modules and not force_update:
             return 1
         # convert module x, y coords to real pixel coords
         module_x = (x+1)*self.module_size
@@ -120,21 +166,28 @@ class ModuleArray:
                 self.protected_modules.append([x-1, (self.modules_per_edge-7)+y-1])
     
     def protect_format_bits(self):
+        # if version is 7 or higher, we need to add a redundant indication of the version number
         if self.version_num > 6:
-            #TODO: different format bit location
-            pass
-        else:
-             # format bits to the right of the bottom-left finder pattern
-            for y in range(0, self.modules_per_edge, 1):
-                if y not in range(9, self.modules_per_edge-8):
-                    # self.update_module(8, y, 1, True)
-                    self.protected_modules.append([8, y])
-            
-            # format bits under the top left finder pattern
-            for x in range(0, self.modules_per_edge, 1):
-                if x not in range(9, self.modules_per_edge-8):
-                    # self.update_module(x, 8, 1, True)
-                    self.protected_modules.append([x, 8])
+            bits_list = MovableHeadArray([int(x) for x in reversed(list(self.FORMAT_STRINGS[self.version_num-7]))])
+            for i in range(6):
+                for j in range(3):
+                    # format bits to the left of the top right finder pattern
+                    self.update_module(self.modules_per_edge-11+j, i, bits_list.get_head())
+                    self.protected_modules.append([self.modules_per_edge-11+j, i])
+                    # format bits above the bottom left finder pattern
+                    self.update_module(i, self.modules_per_edge-11+j, bits_list.get_head())
+                    self.protected_modules.append([i, self.modules_per_edge-11+j])
+                    bits_list.curr_index += 1
+
+        # format bits to the right of the bottom-left finder pattern
+        for y in range(0, self.modules_per_edge, 1):
+            if y not in range(9, self.modules_per_edge-8):
+                self.protected_modules.append([8, y])
+        
+        # format bits under the top left finder pattern
+        for x in range(0, self.modules_per_edge, 1):
+            if x not in range(9, self.modules_per_edge-8):
+                self.protected_modules.append([x, 8])
 
     def add_timing_patterns(self):
         # Timing patterns
@@ -153,13 +206,16 @@ class ModuleArray:
         self.protected_modules.append([8, ((4 * self.version_num) + 9) ])
     
     def add_alignment_patterns(self):
-        pos = self.ALIGNMENT_PATTERN_LOCS[self.version_num-2]
-        for x_shift, row in enumerate(self.ALIGNMENT_PATTERN):
-            for y_shift, value in enumerate(row):
-                align_x = pos + x_shift - 2
-                align_y = pos + y_shift - 2
-                self.update_module(align_x, align_y, value)
-                self.protected_modules.append([align_x, align_y])
+        locations = self.ALIGNMENT_PATTERN_LOCS[self.version_num-2]
+        for i in range(len(locations)):
+            for j in range(len(locations)):
+                if [locations[i], locations[j]] not in self.protected_modules:
+                    for x_shift, row in enumerate(self.ALIGNMENT_PATTERN):
+                        for y_shift, value in enumerate(row):
+                            align_x = locations[i] + x_shift - 2
+                            align_y = locations[j] + y_shift - 2
+                            self.update_module(align_x, align_y, value)
+                            self.protected_modules.append([align_x, align_y])
 
 
 
@@ -258,35 +314,70 @@ def calculate_error_correction(message_ints, num_codewords, gf):
 
 
 # Currently only has data for versions 1 - 6
-CODEWORD_BLOCKS = [[CodewordCounts([[1, 9]], 17),           # 1H
-                    CodewordCounts([[1, 13]], 13),          # 1Q
-                    CodewordCounts([[1, 16]], 10),          # 1M
-                    CodewordCounts([[1, 19]], 7)],          # 1L
+CODEWORD_BLOCKS = [[CodewordCounts([[1, 9]], 17),               # 1H
+                    CodewordCounts([[1, 13]], 13),              # 1Q
+                    CodewordCounts([[1, 16]], 10),              # 1M
+                    CodewordCounts([[1, 19]], 7)],              # 1L
 
-                   [CodewordCounts([[1, 16]], 28),          # 2H
-                    CodewordCounts([[1, 22]], 22),          # 2Q
-                    CodewordCounts([[1, 28]], 16),          # 2M
-                    CodewordCounts([[1, 34]], 10)],         # 2L
+                   [CodewordCounts([[1, 16]], 28),              # 2H
+                    CodewordCounts([[1, 22]], 22),              # 2Q
+                    CodewordCounts([[1, 28]], 16),              # 2M
+                    CodewordCounts([[1, 34]], 10)],             # 2L
 
-                   [CodewordCounts([[2, 13]], 22),          # 3H
-                    CodewordCounts([[2, 17]], 18),          # 3Q
-                    CodewordCounts([[1, 44]], 26),          # 3M
-                    CodewordCounts([[1, 55]], 15)],         # 3L
+                   [CodewordCounts([[2, 13]], 22),              # 3H
+                    CodewordCounts([[2, 17]], 18),              # 3Q
+                    CodewordCounts([[1, 44]], 26),              # 3M
+                    CodewordCounts([[1, 55]], 15)],             # 3L
 
-                   [CodewordCounts([[4, 9]], 16),           # 4H
-                    CodewordCounts([[2, 24]], 26),          # 4Q
-                    CodewordCounts([[2, 32]], 18),          # 4M
-                    CodewordCounts([[1, 80]], 20)],         # 4L
-                   
-                   [CodewordCounts([[2, 11], [2, 12]], 22), # 5H
-                    CodewordCounts([[2, 15], [2, 16]], 18), # 5Q
-                    CodewordCounts([[2, 43]], 24),          # 5M
-                    CodewordCounts([[1, 108]], 26)],        # 5L
-                   
-                   [CodewordCounts([[4, 15]], 28),          # 6H
-                    CodewordCounts([[4, 19]], 24),          # 6Q
-                    CodewordCounts([[4, 27]], 16),          # 6M
-                    CodewordCounts([[2, 68]], 18)]]         # 6L
+                   [CodewordCounts([[4, 9]], 16),               # 4H
+                    CodewordCounts([[2, 24]], 26),              # 4Q
+                    CodewordCounts([[2, 32]], 18),              # 4M
+                    CodewordCounts([[1, 80]], 20)],             # 4L
+
+                   [CodewordCounts([[2, 11], [2, 12]], 22),     # 5H
+                    CodewordCounts([[2, 15], [2, 16]], 18),     # 5Q
+                    CodewordCounts([[2, 43]], 24),              # 5M
+                    CodewordCounts([[1, 108]], 26)],            # 5L
+
+                   [CodewordCounts([[4, 15]], 28),              # 6H
+                    CodewordCounts([[4, 19]], 24),              # 6Q
+                    CodewordCounts([[4, 27]], 16),              # 6M
+                    CodewordCounts([[2, 68]], 18)],             # 6L
+
+                   [CodewordCounts([[4, 13], [1, 14]], 26),     # 7H
+                    CodewordCounts([[2, 14], [4, 15]], 18),     # 7Q
+                    CodewordCounts([[4, 31]], 18),              # 7M
+                    CodewordCounts([[2, 78]], 20)],             # 7L
+
+                   [CodewordCounts([[4, 14], [2, 15]], 26),     # 8H
+                    CodewordCounts([[4, 18], [2, 19]], 22),     # 8Q
+                    CodewordCounts([[2, 38], [2, 39]], 22),     # 8M
+                    CodewordCounts([[2, 97]], 24)],             # 8L
+
+                   [CodewordCounts([[4, 12], [4, 13]], 24),     # 9H
+                    CodewordCounts([[4, 16], [4, 17]], 20),     # 9Q
+                    CodewordCounts([[3, 36], [2, 37]], 22),     # 9M
+                    CodewordCounts([[2, 116]], 30)]]            # 9L
+
+                #    [CodewordCounts([[6, 15], [2, 16]], 28),     # 10H
+                #     CodewordCounts([[6, 19], [2, 20]], 24),     # 10Q
+                #     CodewordCounts([[4, 43], [1, 44]], 26),     # 10M
+                #     CodewordCounts([[2, 68], [2, 69]], 18)],    # 10L
+
+                #    [CodewordCounts([[3, 12], [8, 13]], 24),     # 11H
+                #     CodewordCounts([[4, 22], [4, 23]], 28),     # 11Q
+                #     CodewordCounts([[1, 50], [4, 51]], 30),     # 11M
+                #     CodewordCounts([[4, 81]], 20)],             # 11L
+
+                #    [CodewordCounts([[7, 14], [4, 15]], 28),     # 12H
+                #     CodewordCounts([[4, 20], [6, 21]], 26),     # 12Q
+                #     CodewordCounts([[6, 36], [2, 37]], 22),     # 12M
+                #     CodewordCounts([[2, 92], [2, 93]], 24)],    # 12L
+
+                #    [CodewordCounts([[12, 11], [4, 12]], 22),    # 13H
+                #     CodewordCounts([[8, 20], [4, 21]], 24),     # 13Q
+                #     CodewordCounts([[8, 37], [1, 38]], 22),     # 13M
+                #     CodewordCounts([[4, 107]], 26)]]            # 13L
 
 
 DATA = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
@@ -479,7 +570,3 @@ except Exception as e:
 else:
     pass
     print(f"Output saved as {filename}")
-
-
-
-# TODO: if version > 7, we have to include the version number (https://www.thonky.com/qr-code-tutorial/format-version-information#version-information)
