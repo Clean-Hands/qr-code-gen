@@ -299,6 +299,10 @@ def calculate_error_correction(message_ints, num_codewords, gf):
     # return the remainder (error correction codewords)
     return dividend[-len(padding):]
 
+def sanitize_string(str):
+    encoded_str = str.encode('latin-1', 'ignore')
+    return encoded_str.decode('latin-1')
+
 
 
 # =================================================================================================================
@@ -357,38 +361,40 @@ CODEWORD_BLOCKS = [[CodewordCounts([[1, 9]], 17),               # 1H
                    [CodewordCounts([[4, 12], [4, 13]], 24),     # 9H
                     CodewordCounts([[4, 16], [4, 17]], 20),     # 9Q
                     CodewordCounts([[3, 36], [2, 37]], 22),     # 9M
-                    CodewordCounts([[2, 116]], 30)]]            # 9L
+                    CodewordCounts([[2, 116]], 30)],            # 9L
 
-                #    [CodewordCounts([[6, 15], [2, 16]], 28),     # 10H
-                #     CodewordCounts([[6, 19], [2, 20]], 24),     # 10Q
-                #     CodewordCounts([[4, 43], [1, 44]], 26),     # 10M
-                #     CodewordCounts([[2, 68], [2, 69]], 18)],    # 10L
+                   [CodewordCounts([[6, 15], [2, 16]], 28),     # 10H
+                    CodewordCounts([[6, 19], [2, 20]], 24),     # 10Q
+                    CodewordCounts([[4, 43], [1, 44]], 26),     # 10M
+                    CodewordCounts([[2, 68], [2, 69]], 18)],    # 10L
 
-                #    [CodewordCounts([[3, 12], [8, 13]], 24),     # 11H
-                #     CodewordCounts([[4, 22], [4, 23]], 28),     # 11Q
-                #     CodewordCounts([[1, 50], [4, 51]], 30),     # 11M
-                #     CodewordCounts([[4, 81]], 20)],             # 11L
+                   [CodewordCounts([[3, 12], [8, 13]], 24),     # 11H
+                    CodewordCounts([[4, 22], [4, 23]], 28),     # 11Q
+                    CodewordCounts([[1, 50], [4, 51]], 30),     # 11M
+                    CodewordCounts([[4, 81]], 20)],             # 11L
 
-                #    [CodewordCounts([[7, 14], [4, 15]], 28),     # 12H
-                #     CodewordCounts([[4, 20], [6, 21]], 26),     # 12Q
-                #     CodewordCounts([[6, 36], [2, 37]], 22),     # 12M
-                #     CodewordCounts([[2, 92], [2, 93]], 24)],    # 12L
+                   [CodewordCounts([[7, 14], [4, 15]], 28),     # 12H
+                    CodewordCounts([[4, 20], [6, 21]], 26),     # 12Q
+                    CodewordCounts([[6, 36], [2, 37]], 22),     # 12M
+                    CodewordCounts([[2, 92], [2, 93]], 24)],    # 12L
 
-                #    [CodewordCounts([[12, 11], [4, 12]], 22),    # 13H
-                #     CodewordCounts([[8, 20], [4, 21]], 24),     # 13Q
-                #     CodewordCounts([[8, 37], [1, 38]], 22),     # 13M
-                #     CodewordCounts([[4, 107]], 26)]]            # 13L
+                   [CodewordCounts([[12, 11], [4, 12]], 22),    # 13H
+                    CodewordCounts([[8, 20], [4, 21]], 24),     # 13Q
+                    CodewordCounts([[8, 37], [1, 38]], 22),     # 13M
+                    CodewordCounts([[4, 107]], 26)]]            # 13L
 
 
 DATA = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
 
+cleaned_data = sanitize_string(DATA)
+
 MODE_BITS = "0100" # byte mode
 
-char_count = f'{len(DATA):08b}' # for byte mode, char_count needs to be 8 bits long (versions 1-9)
+char_count = f'{len(cleaned_data):08b}' # for byte mode, char_count needs to be 8 bits long (versions 1-9)
 
 # convert the characters to ISO 8859-1 encoding
 combined_enc_str = ""
-for char in DATA:
+for char in cleaned_data:
     combined_enc_str += f'{ord(char):08b}'
 
 data_bits = MODE_BITS + char_count + combined_enc_str
@@ -404,6 +410,10 @@ EC_LVL = -1
 # cw_info[3] == info for ECL L
 for ver_num, cw in enumerate(CODEWORD_BLOCKS):
     
+    # if the version number is above 9, reassign data_bits with a 16 bit long char_count
+    if ver_num + 1 == 10 :
+        data_bits = MODE_BITS + f'{len(cleaned_data):016b}' + combined_enc_str
+
     # unpack the cw array
     h_cw_info, q_cw_info, m_cw_info, l_cw_info = cw
     
