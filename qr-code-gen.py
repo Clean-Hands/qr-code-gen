@@ -70,7 +70,7 @@ class ModuleArray:
                                   [1,0,0,0,1],
                                   [1,1,1,1,1]]
         
-        # Currently only has data for versions 2 - 13
+        # Currently only has data for versions 2 - 20
         self.ALIGNMENT_PATTERN_LOCS = [[6, 18],
                                        [6, 22],
                                        [6, 26],
@@ -82,7 +82,14 @@ class ModuleArray:
                                        [6, 28, 50],
                                        [6, 30, 54],
                                        [6, 32, 58],
-                                       [6, 34, 62]]
+                                       [6, 34, 62],
+                                       [6, 26, 46, 66],
+                                       [6, 26, 48, 70],
+                                       [6, 26, 50, 74],
+                                       [6, 30, 54, 78],
+                                       [6, 30, 56, 82],
+                                       [6, 30, 58, 86],
+                                       [6, 34, 62, 90]]
         
         self.FORMAT_STRINGS = ["000111110010010100",
                                "001000010110111100",
@@ -190,11 +197,12 @@ class ModuleArray:
                 self.protected_modules.append([x, 8])
 
     def add_timing_patterns(self):
-        # Timing patterns
+        # timing pattern between top left and top right finder patterns
         for x in range(7, self.modules_per_edge-7):
             if x % 2 == 0:
                 self.update_module(x, 6, 1, True)
             self.protected_modules.append([x, 6])
+        # timing pattern between top left and bottom left finder patterns
         for y in range(7, self.modules_per_edge-7):
             if y % 2 == 0:
                 self.update_module(6, y, 1, True)
@@ -236,6 +244,7 @@ class MovableHeadArray:
         self.data_bits[self.curr_index] = value
 
 
+
 # object that holds all the information about any specific version and error correction level QR code
 class CodewordCounts:
     
@@ -262,6 +271,12 @@ class CodewordCounts:
     def getMaxDataBits(self):
         return self.max_data_bits
         
+
+
+###################################################################################################
+########################################## END CLASSES ############################################
+###################################################################################################
+
 
 
 # create a generator polynomial for the specified number of error correction words
@@ -305,9 +320,10 @@ def sanitize_string(str):
 
 
 
-# =================================================================================================================
-# ================================================ END FUNCTIONS ==================================================
-# =================================================================================================================
+###################################################################################################
+######################################### END FUNCTIONS ###########################################
+###################################################################################################
+
 
 
 # TODO CLI Options:
@@ -317,7 +333,7 @@ def sanitize_string(str):
 # -m, --mask [mask number]: override mask number
 
 
-# Currently only has data for versions 1 - 6
+# Currently only has data for versions 1 - 20
 CODEWORD_BLOCKS = [[CodewordCounts([[1, 9]], 17),               # 1H
                     CodewordCounts([[1, 13]], 13),              # 1Q
                     CodewordCounts([[1, 16]], 10),              # 1M
@@ -381,8 +397,42 @@ CODEWORD_BLOCKS = [[CodewordCounts([[1, 9]], 17),               # 1H
                    [CodewordCounts([[12, 11], [4, 12]], 22),    # 13H
                     CodewordCounts([[8, 20], [4, 21]], 24),     # 13Q
                     CodewordCounts([[8, 37], [1, 38]], 22),     # 13M
-                    CodewordCounts([[4, 107]], 26)]]            # 13L
+                    CodewordCounts([[4, 107]], 26)],            # 13L
 
+                   [CodewordCounts([[11, 12], [5, 13]], 24),    # 14H
+                    CodewordCounts([[11, 16], [5, 17]], 20),    # 14Q
+                    CodewordCounts([[4, 40], [5, 41]], 24),     # 14M
+                    CodewordCounts([[3, 115], [1, 116]], 30)],  # 14L
+
+                   [CodewordCounts([[11, 12], [7, 13]], 24),    # 15H
+                    CodewordCounts([[5, 24], [7, 25]], 30),     # 15Q
+                    CodewordCounts([[5, 41], [5, 42]], 24),     # 15M
+                    CodewordCounts([[5, 87], [1, 88]], 22)],    # 15L
+
+                   [CodewordCounts([[3, 15], [13, 16]], 30),    # 16H
+                    CodewordCounts([[15, 19], [2, 20]], 24),    # 16Q
+                    CodewordCounts([[7, 45], [3, 46]], 28),     # 16M
+                    CodewordCounts([[5, 98], [1, 99]], 24)],    # 16L
+
+                   [CodewordCounts([[2, 14], [17, 15]], 28),    # 17H
+                    CodewordCounts([[1, 22], [15, 23]], 28),    # 17Q
+                    CodewordCounts([[10, 46], [1, 47]], 28),    # 17M
+                    CodewordCounts([[1, 107], [5, 108]], 28)],  # 17L
+
+                   [CodewordCounts([[2, 14], [19, 15]], 28),    # 18H
+                    CodewordCounts([[17, 22], [1, 23]], 28),    # 18Q
+                    CodewordCounts([[9, 43], [4, 44]], 26),     # 18M
+                    CodewordCounts([[5, 120], [1, 121]], 30)],  # 18L
+
+                   [CodewordCounts([[9, 13], [16, 14]], 26),    # 19H
+                    CodewordCounts([[17, 21], [4, 22]], 26),    # 19Q
+                    CodewordCounts([[3, 44], [11, 45]], 26),    # 19M
+                    CodewordCounts([[3, 113], [4, 114]], 28)],  # 19L
+
+                   [CodewordCounts([[15, 15], [10, 16]], 28),   # 20H
+                    CodewordCounts([[15, 24], [5, 25]], 30),    # 20Q
+                    CodewordCounts([[3, 41], [13, 42]], 26),    # 20M
+                    CodewordCounts([[3, 107], [5, 108]], 28)]]  # 20L
 
 DATA = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
 
@@ -527,7 +577,7 @@ for cont_int in content_ints:
     content_bits += f'{cont_int:08b}'
 
 MODULES_PER_EDGE = (((VERSION_NUM - 1) * 4) + 21)
-IMAGE_RESOLUTION = 512
+IMAGE_RESOLUTION = 512 # lower bound on image resolution
 
 rounded_resolution = 0
 while rounded_resolution < IMAGE_RESOLUTION:
