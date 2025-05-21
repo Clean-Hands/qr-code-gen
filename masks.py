@@ -247,8 +247,8 @@ class QrMask:
         for x in range(self.modules_per_edge-8, self.modules_per_edge, 1):
             module_arr.update_module(x, 8, format_list.pop(0), True)
 
-    
-    
+
+
     def apply_best_mask(self, qr_image, module_arr):
         # make copies of the original unmasked QR code
         qr_image_mask_0 = qr_image.copy()
@@ -331,3 +331,41 @@ class QrMask:
             qr_image = qr_image_mask_7
         
         return qr_image
+
+
+
+    def apply_specific_mask(self, module_arr, mask_num):
+
+        if mask_num == 0:
+            self.apply_mask(module_arr, self.mask_num_0)
+            self.add_format_bits(module_arr, 0)
+
+        elif mask_num == 1:
+            self.apply_mask(module_arr, self.mask_num_1)
+            self.add_format_bits(module_arr, 1)
+
+        elif mask_num == 2:
+            self.apply_mask(module_arr, self.mask_num_2)
+            self.add_format_bits(module_arr, 2)
+
+        elif mask_num == 3:
+            self.apply_mask(module_arr, self.mask_num_3)
+            self.add_format_bits(module_arr, 3)
+
+        elif mask_num == 4:
+            self.apply_mask(module_arr, self.mask_num_4)
+            self.add_format_bits(module_arr, 4)
+
+        elif mask_num == 5:
+            self.apply_mask(module_arr, self.mask_num_5)
+            self.add_format_bits(module_arr, 5)
+
+        elif mask_num == 6:
+            self.apply_mask(module_arr, self.mask_num_6)
+            self.add_format_bits(module_arr, 6)
+
+        elif mask_num == 7:
+            self.apply_mask(module_arr, self.mask_num_7)
+            self.add_format_bits(module_arr, 7)
+        
+        return module_arr

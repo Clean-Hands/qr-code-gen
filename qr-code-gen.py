@@ -1,6 +1,7 @@
 from PIL import Image
 from masks import QrMask
-
+from argparse import ArgumentParser
+from sys import argv
 
 
 class GaloisField:
@@ -70,7 +71,7 @@ class ModuleArray:
                                   [1,0,0,0,1],
                                   [1,1,1,1,1]]
         
-        # Currently only has data for versions 2 - 20
+        # Has data for versions 2 - 40
         self.ALIGNMENT_PATTERN_LOCS = [[6, 18],
                                        [6, 22],
                                        [6, 26],
@@ -89,7 +90,27 @@ class ModuleArray:
                                        [6, 30, 54, 78],
                                        [6, 30, 56, 82],
                                        [6, 30, 58, 86],
-                                       [6, 34, 62, 90]]
+                                       [6, 34, 62, 90],
+                                       [6, 28, 50, 72, 94],
+                                       [6, 26, 50, 74, 98],
+                                       [6, 30, 54, 78, 102],
+                                       [6, 28, 54, 80, 106],
+                                       [6, 32, 58, 84, 110],
+                                       [6, 30, 58, 86, 114],
+                                       [6, 34, 62, 90, 118],
+                                       [6, 26, 50, 74, 98, 122],
+                                       [6, 30, 54, 78, 102, 126],
+                                       [6, 26, 52, 78, 104, 130],
+                                       [6, 30, 56, 82, 108, 134],
+                                       [6, 34, 60, 86, 112, 138],
+                                       [6, 30, 58, 86, 114, 142],
+                                       [6, 34, 62, 90, 118, 146],
+                                       [6, 30, 54, 78, 102, 126, 150],
+                                       [6, 24, 50, 76, 102, 128, 154],
+                                       [6, 28, 54, 80, 106, 132, 158],
+                                       [6, 32, 58, 84, 110, 136, 162],
+                                       [6, 26, 54, 82, 110, 138, 166],
+                                       [6, 30, 58, 86, 114, 142, 170]]
         
         self.FORMAT_STRINGS = ["000111110010010100",
                                "001000010110111100",
@@ -332,8 +353,18 @@ def sanitize_string(str):
 # -v, --version [version number]: override version number
 # -m, --mask [mask number]: override mask number
 
+parser = ArgumentParser("qr-code-gen.py")
 
-# Currently only has data for versions 1 - 20
+parser.add_argument("data", help="data to be encoded within the QR code")
+parser.add_argument("-e", "--err-corr", metavar="error_correction", choices=["L", "M", "Q", "H"], help="level of error correction", default="LMQH")
+parser.add_argument("-v", "--version-num", metavar="version_number", choices=range(1,41), type=int, help="override version number", default=0)
+parser.add_argument("-m", "--mask",  metavar="mask", choices=range(1,8), type=int, help="override mask number", default=0)
+
+parsed_args = parser.parse_args(argv[1:])
+
+
+
+# Has data for versions 1 - 40
 CODEWORD_BLOCKS = [[CodewordCounts([[1, 9]], 17),               # 1H
                     CodewordCounts([[1, 13]], 13),              # 1Q
                     CodewordCounts([[1, 16]], 10),              # 1M
@@ -432,11 +463,110 @@ CODEWORD_BLOCKS = [[CodewordCounts([[1, 9]], 17),               # 1H
                    [CodewordCounts([[15, 15], [10, 16]], 28),   # 20H
                     CodewordCounts([[15, 24], [5, 25]], 30),    # 20Q
                     CodewordCounts([[3, 41], [13, 42]], 26),    # 20M
-                    CodewordCounts([[3, 107], [5, 108]], 28)]]  # 20L
+                    CodewordCounts([[3, 107], [5, 108]], 28)],  # 20L
 
-DATA = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+                   [CodewordCounts([[19, 16], [6, 17]], 30),    # 21H
+                    CodewordCounts([[17, 22], [6, 23]], 28),    # 21Q
+                    CodewordCounts([[17, 42]], 26),             # 21M
+                    CodewordCounts([[4, 116], [4, 117]], 28)],  # 21L
 
-cleaned_data = sanitize_string(DATA)
+                   [CodewordCounts([[34, 13]], 24),             # 22H
+                    CodewordCounts([[7, 24], [16, 25]], 30),    # 22Q
+                    CodewordCounts([[17, 46]], 28),             # 22M
+                    CodewordCounts([[2, 111], [7, 112]], 28)],  # 22L
+
+                   [CodewordCounts([[16, 15], [14, 16]], 30),   # 23H
+                    CodewordCounts([[11, 24], [14, 25]], 30),   # 23Q
+                    CodewordCounts([[4, 47], [14, 48]], 28),    # 23M
+                    CodewordCounts([[4, 121], [5, 122]], 30)],  # 23L
+
+                   [CodewordCounts([[30, 16], [2, 17]], 30),    # 24H
+                    CodewordCounts([[11, 24], [16, 25]], 30),   # 24Q
+                    CodewordCounts([[6, 45], [14, 46]], 28),    # 24M
+                    CodewordCounts([[6, 117], [4, 118]], 30)],  # 24L
+
+                   [CodewordCounts([[22, 15], [13, 16]], 30),   # 25H
+                    CodewordCounts([[7, 24], [22, 25]], 30),    # 25Q
+                    CodewordCounts([[8, 47], [13, 48]], 28),    # 25M
+                    CodewordCounts([[8, 106], [4, 107]], 26)],  # 25L
+
+                   [CodewordCounts([[33, 16], [4, 17]], 30),    # 26H
+                    CodewordCounts([[28, 22], [6, 23]], 28),    # 26Q
+                    CodewordCounts([[19, 46], [4, 47]], 28),    # 26M
+                    CodewordCounts([[10, 114], [2, 115]], 28)], # 26L
+
+                   [CodewordCounts([[12, 15], [28, 16]], 30),   # 27H
+                    CodewordCounts([[8, 23], [26, 24]], 30),    # 27Q
+                    CodewordCounts([[22, 45], [3, 46]], 28),    # 27M
+                    CodewordCounts([[8, 122], [4, 123]], 30)],  # 27L
+
+                   [CodewordCounts([[11, 15], [31, 16]], 30),   # 28H
+                    CodewordCounts([[4, 24], [31, 25]], 30),    # 28Q
+                    CodewordCounts([[3, 45], [23, 46]], 28),    # 28M
+                    CodewordCounts([[3, 117], [10, 118]], 30)], # 28L
+
+                   [CodewordCounts([[19, 15], [26, 16]], 30),   # 29H
+                    CodewordCounts([[1, 23], [37, 24]], 30),    # 29Q
+                    CodewordCounts([[21, 45], [7, 46]], 28),    # 29M
+                    CodewordCounts([[7, 116], [7, 117]], 30)],  # 29L
+
+                   [CodewordCounts([[23, 15], [25, 16]], 30),   # 30H
+                    CodewordCounts([[15, 24], [25, 25]], 30),   # 30Q
+                    CodewordCounts([[19, 47], [10, 48]], 28),   # 30M
+                    CodewordCounts([[5, 115], [10, 116]], 30)], # 30L
+
+                   [CodewordCounts([[23, 15], [28, 16]], 30),   # 31H
+                    CodewordCounts([[42, 24], [1, 25]], 30),    # 31Q
+                    CodewordCounts([[2, 46], [29, 47]], 28),    # 31M
+                    CodewordCounts([[13, 115], [3, 116]], 30)], # 31L
+
+                   [CodewordCounts([[19, 15], [35, 16]], 30),   # 32H
+                    CodewordCounts([[10, 24], [35, 25]], 30),   # 32Q
+                    CodewordCounts([[10, 46], [23, 47]], 28),   # 32M
+                    CodewordCounts([[17, 115]], 30)],           # 32L
+
+                   [CodewordCounts([[11, 15], [46, 16]], 30),   # 33H
+                    CodewordCounts([[29, 24], [19, 25]], 30),   # 33Q
+                    CodewordCounts([[14, 46], [21, 47]], 28),   # 33M
+                    CodewordCounts([[17, 115], [1, 116]], 30)], # 33L
+
+                   [CodewordCounts([[59, 16], [1, 17]], 30),    # 34H
+                    CodewordCounts([[44, 24], [7, 25]], 30),    # 34Q
+                    CodewordCounts([[14, 46], [23, 47]], 28),   # 34M
+                    CodewordCounts([[13, 115], [6, 116]], 30)], # 34L
+
+                   [CodewordCounts([[22, 15], [41, 16]], 30),   # 35H
+                    CodewordCounts([[39, 24], [14, 25]], 30),   # 35Q
+                    CodewordCounts([[12, 47], [26, 48]], 28),   # 35M
+                    CodewordCounts([[12, 121], [7, 122]], 30)], # 35L
+
+                   [CodewordCounts([[2, 15], [64, 16]], 30),    # 36H
+                    CodewordCounts([[46, 24], [10, 25]], 30),   # 36Q
+                    CodewordCounts([[6, 47], [34, 48]], 28),    # 36M
+                    CodewordCounts([[6, 121], [14, 122]], 30)], # 36L
+
+                   [CodewordCounts([[24, 15], [46, 16]], 30),   # 37H
+                    CodewordCounts([[49, 24], [10, 25]], 30),   # 37Q
+                    CodewordCounts([[29, 46], [14, 47]], 28),   # 37M
+                    CodewordCounts([[17, 122], [4, 123]], 30)], # 37L
+
+                   [CodewordCounts([[42, 15], [32, 16]], 30),   # 38H
+                    CodewordCounts([[48, 24], [14, 25]], 30),   # 38Q
+                    CodewordCounts([[13, 46], [32, 47]], 28),   # 38M
+                    CodewordCounts([[4, 122], [18, 123]], 30)], # 38L
+
+                   [CodewordCounts([[10, 15], [67, 16]], 30),   # 39H
+                    CodewordCounts([[43, 24], [22, 25]], 30),   # 39Q
+                    CodewordCounts([[40, 47], [7, 48]], 28),    # 39M
+                    CodewordCounts([[20, 117], [4, 118]], 30)], # 39L
+
+                   [CodewordCounts([[20, 15], [61, 16]], 30),   # 40H
+                    CodewordCounts([[34, 24], [34, 25]], 30),   # 40Q
+                    CodewordCounts([[18, 47], [31, 48]], 28),   # 40M
+                    CodewordCounts([[19, 118], [6, 119]], 30)]] # 40L
+
+
+cleaned_data = sanitize_string(parsed_args.data)
 
 MODE_BITS = "0100" # byte mode
 
@@ -460,6 +590,9 @@ EC_LVL = -1
 # cw_info[3] == info for ECL L
 for ver_num, cw in enumerate(CODEWORD_BLOCKS):
     
+    if parsed_args.version_num > 0 and ver_num < parsed_args.version_num-1:
+        continue
+    
     # if the version number is above 9, reassign data_bits with a 16 bit long char_count
     if ver_num + 1 == 10 :
         data_bits = MODE_BITS + f'{len(cleaned_data):016b}' + combined_enc_str
@@ -467,22 +600,22 @@ for ver_num, cw in enumerate(CODEWORD_BLOCKS):
     # unpack the cw array
     h_cw_info, q_cw_info, m_cw_info, l_cw_info = cw
     
-    if h_cw_info.getMaxDataBits() >= len(data_bits): # H
+    if h_cw_info.getMaxDataBits() >= len(data_bits) and 'H' in parsed_args.error_correction: # H
         CW_INFO = h_cw_info
         VERSION_NUM = ver_num + 1
         EC_LVL = 2 # Error correction level H == 2
         break
-    elif q_cw_info.getMaxDataBits() >= len(data_bits): # Q
+    elif q_cw_info.getMaxDataBits() >= len(data_bits) and 'Q' in parsed_args.error_correction: # Q
         CW_INFO = q_cw_info
         VERSION_NUM = ver_num + 1
         EC_LVL = 3 # Error correction level Q == 3
         break
-    elif m_cw_info.getMaxDataBits() >= len(data_bits): # M
+    elif m_cw_info.getMaxDataBits() >= len(data_bits) and 'M' in parsed_args.error_correction: # M
         CW_INFO = m_cw_info
         VERSION_NUM = ver_num + 1
         EC_LVL = 0 # Error correction level M == 0
         break
-    elif l_cw_info.getMaxDataBits() >= len(data_bits): # L
+    elif l_cw_info.getMaxDataBits() >= len(data_bits) and 'L' in parsed_args.error_correction: # L
         CW_INFO = l_cw_info
         VERSION_NUM = ver_num + 1
         EC_LVL = 1 # Error correction level L == 1
@@ -617,16 +750,17 @@ for y in range(9, MODULES_PER_EDGE-8, 1):
 
 # apply mask
 qr_masks = QrMask(MODULES_PER_EDGE, EC_LVL)
-qr_image = qr_masks.apply_best_mask(qr_image, module_arr)
+if parsed_args.mask > 0:
+    module_arr = qr_masks.apply_specific_mask(module_arr, parsed_args.mask)
+else:
+    qr_image = qr_masks.apply_best_mask(qr_image, module_arr)
 
 trans_ec_lvl = ["M", "L", "H", "Q"]
-
 filename = f"./image-{VERSION_NUM}{trans_ec_lvl[EC_LVL]}.png"
 
 try:
-    qr_image.save(filename)
+    qr_image.save(filename) #, bits=1) # for some reason if bits is left as default (8), the image cannot be loaded on mobile devices
 except Exception as e:
     print("Error saving file:", e)
 else:
-    pass
     print(f"Output saved as {filename}")
